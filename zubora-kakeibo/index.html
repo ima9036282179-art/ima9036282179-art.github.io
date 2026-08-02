@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f7f7f5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>ずぼら家計簿</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --bg:#f7f7f5; --card:#ffffff; --border:#e4e2dc; --text:#1c1c1a; --muted:#8a887f;
+    --good:#0ca30c; --warn:#c98500; --danger:#d03b3b;
+    --accent:#2a78d6; --accent-wash:rgba(42,120,214,0.10);
+    --fixed:#8a887f; --fixed-wash:rgba(138,136,127,0.14);
+    --leftover:#0ca30c; --leftover-wash:rgba(12,163,12,0.12);
+    --savings:#7c5cbf; --savings-wash:rgba(124,92,191,0.14);
+  }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; overflow-x:hidden; }
+
+  .app { max-width:480px; margin:0 auto; padding:7.8rem 1.2rem 3rem; min-height:100vh; }
+
+  .header { position:fixed; top:0; left:0; right:0; z-index:110; background:var(--bg); text-align:center; padding:1rem 1.2rem .6rem; border-bottom:1px solid var(--border); }
+  .header-inner { max-width:480px; margin:0 auto; }
+  .app-title { font-size:1.05rem; font-weight:800; letter-spacing:.01em; color:var(--text); margin-bottom:.15rem; }
+  .header h1 { font-size:.8rem; font-weight:600; letter-spacing:.04em; color:var(--muted); }
+
+  .tabs { display:flex; position:fixed; top:4.2rem; left:0; right:0; z-index:105; background:var(--card); border-bottom:1px solid var(--border); max-width:480px; margin:0 auto; }
+  .tab { flex:1; text-align:center; padding:.65rem 0; font-size:.76rem; font-weight:600; color:var(--muted); cursor:pointer; }
+  .tab-icon { font-size:1rem; display:block; margin-bottom:1px; }
+  .tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
+
+  .page { display:none; padding-top:1rem; }
+  .page.active { display:block; }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.4rem; margin-bottom:1rem; }
+
+  /* ダッシュボード */
+  .dash-label { font-size:.78rem; color:var(--muted); font-weight:600; letter-spacing:.03em; margin-bottom:.3rem; }
+  .dash-value { font-size:2.6rem; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.15; }
+  .dash-sub { font-size:.85rem; color:var(--muted); margin-top:.4rem; }
+
+  .today-date { text-align:center; font-size:.88rem; font-weight:700; color:var(--muted); margin-bottom:.9rem; letter-spacing:.02em; }
+  .today-allowance { text-align:center; padding:1.8rem 1.4rem; }
+  .today-allowance .dash-label { text-align:center; }
+  .today-allowance .dash-value { font-size:3.2rem; }
+
+  .stats-row { display:flex; gap:.8rem; }
+  .stats-row .card { flex:1; padding:1rem 1.1rem; margin-bottom:0; }
+  .stats-row .dash-value { font-size:1.5rem; }
+
+  .advice { display:flex; align-items:center; gap:.7rem; padding:1rem 1.2rem; border-radius:14px; font-size:.92rem; font-weight:600; margin-bottom:1rem; }
+  .advice.good { background:rgba(12,163,12,0.10); color:var(--good); }
+  .advice.warn { background:rgba(201,133,0,0.12); color:var(--warn); }
+  .advice.danger { background:rgba(208,59,59,0.10); color:var(--danger); }
+  .advice-icon { font-size:1.3rem; flex:none; }
+  .advice.small { padding:.75rem 1rem; font-size:.82rem; margin-bottom:0; margin-top:.9rem; }
+  .advice.small .advice-icon { font-size:1.05rem; }
+
+  /* 内訳(固定費・変動費) */
+  .breakdown-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.7rem; }
+  .breakdown-title { font-size:.82rem; font-weight:700; color:var(--muted); letter-spacing:.03em; }
+  .breakdown-total { font-size:.8rem; color:var(--muted); }
+  .breakdown-bar { display:flex; width:100%; height:14px; border-radius:8px; overflow:hidden; background:var(--bg); gap:2px; margin-bottom:.9rem; }
+  .breakdown-seg { height:100%; }
+  .breakdown-seg.fixed { background:var(--fixed); }
+  .breakdown-seg.variable { background:var(--accent); }
+  .breakdown-seg.savings { background:var(--savings); }
+  .breakdown-seg.leftover { background:var(--leftover); }
+  .breakdown-legend { display:flex; flex-wrap:wrap; gap:.9rem 1.2rem; margin-bottom:.9rem; }
+  .legend-item { display:flex; align-items:center; gap:.4rem; font-size:.82rem; }
+  .legend-dot { width:9px; height:9px; border-radius:3px; flex:none; }
+  .legend-dot.fixed { background:var(--fixed); }
+  .legend-dot.variable { background:var(--accent); }
+  .legend-dot.savings { background:var(--savings); }
+  .legend-dot.leftover { background:var(--leftover); }
+  .legend-amount { font-weight:700; font-variant-numeric:tabular-nums; }
+  .breakdown-warn { font-size:.78rem; color:var(--danger); margin:-.4rem 0 .9rem; line-height:1.6; }
+  .fixed-items { display:flex; flex-direction:column; gap:.45rem; padding-top:.7rem; border-top:1px solid var(--border); }
+  .fixed-item-row { display:flex; justify-content:space-between; font-size:.85rem; color:var(--muted); }
+  .fixed-item-row span:last-child { font-variant-numeric:tabular-nums; color:var(--text); font-weight:600; }
+
+  /* グラフ共通 */
+  .chart-card-title { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.9rem; }
+  .chart-card-title .t { font-size:.82rem; font-weight:700; color:var(--muted); letter-spacing:.03em; }
+  .chart-card-title .s { font-size:.78rem; color:var(--muted); }
+  .chart-legend { display:flex; gap:1.1rem; margin-top:.6rem; }
+  .chart-legend .legend-item { font-size:.76rem; }
+  .legend-line { display:inline-block; width:14px; height:2px; margin-right:.35rem; vertical-align:middle; }
+  .legend-line.actual { background:var(--accent); }
+  .legend-line.ideal { background:var(--muted); }
+
+  /* 月ごとの推移(棒グラフ) */
+  .history-bars { display:flex; align-items:flex-end; gap:.6rem; height:90px; margin-top:1.3rem; }
+  .history-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:.3rem; }
+  .history-bar { width:100%; max-width:34px; border-radius:5px 5px 2px 2px; background:var(--accent-wash); position:relative; min-height:2px; }
+  .history-bar.current { background:var(--accent); }
+  .history-bar-amount { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); margin-bottom:3px; font-size:.62rem; font-weight:700; color:var(--text); white-space:nowrap; }
+  .history-bar-label { font-size:.68rem; color:var(--muted); white-space:nowrap; }
+
+  /* 支出入力 */
+  .entry-row { display:flex; gap:.6rem; }
+  .entry-input { flex:1; padding:.85rem 1rem; font-size:1.1rem; border:1px solid var(--border); border-radius:12px; background:var(--bg); color:var(--text); font-variant-numeric:tabular-nums; }
+  .entry-input:focus { outline:none; border-color:var(--accent); }
+  .entry-btn { padding:.85rem 1.4rem; background:var(--text); color:var(--card); border:none; border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; }
+  .entry-btn:active { opacity:.7; }
+
+  /* 履歴 */
+  .section-title { font-size:.82rem; font-weight:700; color:var(--muted); letter-spacing:.03em; margin:1.6rem 0 .6rem; display:flex; justify-content:space-between; align-items:baseline; }
+  .section-title .total { font-size:.92rem; color:var(--text); font-variant-numeric:tabular-nums; }
+  .expense-list { display:flex; flex-direction:column; gap:2px; }
+  .expense-row { display:flex; align-items:center; justify-content:space-between; padding:.8rem 1rem; background:var(--card); border:1px solid var(--border); }
+  .expense-row:first-child { border-radius:12px 12px 0 0; }
+  .expense-row:last-child { border-radius:0 0 12px 12px; }
+  .expense-row + .expense-row { border-top:none; }
+  .expense-row:only-child { border-radius:12px; }
+  .expense-date { font-size:.8rem; color:var(--muted); }
+  .expense-amount { font-size:.98rem; font-weight:700; font-variant-numeric:tabular-nums; }
+  .expense-del { background:none; border:none; color:var(--muted); font-size:1rem; cursor:pointer; padding:.2rem .5rem; }
+  .expense-del:active { opacity:.5; }
+  .empty-state { text-align:center; color:var(--muted); font-size:.85rem; padding:2rem 1rem; }
+
+  /* 設定 */
+  .settings-btn { position:fixed; top:.9rem; right:1.2rem; width:36px; height:36px; border-radius:50%; background:var(--card); border:1px solid var(--border); color:var(--muted); font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:120; }
+  .settings-btn:active { opacity:.7; }
+
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:300; opacity:0; pointer-events:none; transition:opacity .2s; }
+  .overlay.open { opacity:1; pointer-events:all; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; top:3.5rem; background:var(--card); border-radius:20px 20px 0 0; z-index:400; padding:1.6rem 1.4rem calc(2rem + env(safe-area-inset-bottom)); transform:translateY(100%); transition:transform .28s cubic-bezier(.32,.72,0,1); max-width:480px; margin:0 auto; overflow-y:auto; }
+  .sheet.open { transform:translateY(0); }
+  .sheet-title { font-size:1.05rem; font-weight:700; margin-bottom:1.2rem; }
+  .field { margin-bottom:1.1rem; }
+  .field label { display:block; font-size:.82rem; color:var(--muted); font-weight:600; margin-bottom:.4rem; }
+  .field input { width:100%; padding:.8rem .9rem; font-size:1.05rem; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font-variant-numeric:tabular-nums; }
+  .field input:focus { outline:none; border-color:var(--accent); }
+  .field-hint { font-size:.76rem; color:var(--muted); margin-top:.35rem; line-height:1.5; }
+  .sheet-btns { display:flex; gap:.7rem; margin-top:1.2rem; }
+  .btn { flex:1; padding:.85rem; border:none; border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; }
+  .btn-primary { background:var(--text); color:var(--card); }
+  .btn-secondary { background:var(--bg); color:var(--text); border:1px solid var(--border); }
+  .btn:active { opacity:.7; }
+
+  /* 予算項目リスト(設定内) */
+  .budget-items { display:flex; flex-direction:column; gap:.6rem; margin-bottom:.6rem; }
+  .budget-item-row { display:flex; gap:.5rem; align-items:center; }
+  .budget-item-row input[type="text"] { flex:1.1; padding:.65rem .7rem; font-size:.92rem; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); min-width:0; }
+  .budget-item-row input[type="number"] { flex:1; padding:.65rem .7rem; font-size:.92rem; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); font-variant-numeric:tabular-nums; min-width:0; }
+  .budget-item-row input:focus { outline:none; border-color:var(--accent); }
+  .type-toggle { display:flex; border:1px solid var(--border); border-radius:9px; overflow:hidden; flex:none; }
+  .type-toggle button { padding:.65rem .6rem; font-size:.78rem; font-weight:600; border:none; background:var(--bg); color:var(--muted); cursor:pointer; }
+  .type-toggle button.active[data-type="fixed"] { background:var(--fixed-wash); color:var(--fixed); }
+  .type-toggle button.active[data-type="variable"] { background:var(--accent-wash); color:var(--accent); }
+  .type-toggle button.active[data-type="savings"] { background:var(--savings-wash); color:var(--savings); }
+  .item-del { background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer; padding:.3rem; flex:none; }
+  .item-del:active { opacity:.5; }
+  .add-item-btn { padding:.7rem; background:var(--bg); border:1px dashed var(--border); border-radius:10px; color:var(--muted); font-size:.85rem; font-weight:600; cursor:pointer; width:100%; margin-top:.2rem; }
+  .add-item-btn:active { opacity:.6; }
+</style>
+</head>
+<body>
+
+<button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="設定">⚙</button>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="app-title">家計簿</div>
+    <h1 id="monthLabel">2026年8月</h1>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="today" onclick="switchTab('today')"><span class="tab-icon">📝</span>今日</div>
+  <div class="tab" data-tab="breakdown" onclick="switchTab('breakdown')"><span class="tab-icon">📊</span>内訳</div>
+  <div class="tab" data-tab="trends" onclick="switchTab('trends')"><span class="tab-icon">📈</span>推移</div>
+</div>
+
+<div class="app">
+
+  <div class="page active" id="page-today">
+    <div class="today-date" id="todayDate"></div>
+    <div class="card today-allowance">
+      <div class="dash-label">今日使ってよい目安額</div>
+      <div class="dash-value" id="todayAllowance">¥0</div>
+      <div class="dash-sub" id="todaySub"></div>
+    </div>
+
+    <div id="adviceBox" class="advice good">
+      <span class="advice-icon" id="adviceIcon">🙂</span>
+      <span id="adviceText">予算を設定してください</span>
+    </div>
+
+    <div class="stats-row" style="margin-bottom:1rem;">
+      <div class="card">
+        <div class="dash-label">残り変動費予算</div>
+        <div class="dash-value" id="remainingBudget">¥0</div>
+      </div>
+      <div class="card">
+        <div class="dash-label">残り日数</div>
+        <div class="dash-value" id="remainingDays">0日</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="entry-row">
+        <input type="number" inputmode="numeric" class="entry-input" id="amountInput" placeholder="支出金額を入力">
+        <button class="entry-btn" onclick="addExpense()">記録</button>
+      </div>
+    </div>
+
+    <div class="section-title">今日の支出</div>
+    <div class="expense-list" id="todayList"></div>
+  </div>
+
+  <div class="page" id="page-breakdown">
+    <div class="card" id="breakdownCard">
+      <div class="breakdown-header">
+        <span class="breakdown-title">今月の内訳(財布の残高が基準)</span>
+        <span class="breakdown-total" id="breakdownTotal"></span>
+      </div>
+      <div class="breakdown-bar" id="breakdownBar"></div>
+      <div id="breakdownWarn"></div>
+      <div class="breakdown-legend">
+        <div class="legend-item"><span class="legend-dot fixed"></span>固定費 <span class="legend-amount" id="fixedTotalLabel">¥0</span></div>
+        <div class="legend-item"><span class="legend-dot variable"></span>変動費予算 <span class="legend-amount" id="variableTotalLabel">¥0</span></div>
+        <div class="legend-item"><span class="legend-dot savings"></span>貯蓄 <span class="legend-amount" id="savingsTotalLabel">¥0</span></div>
+        <div class="legend-item"><span class="legend-dot leftover"></span>残り(未割り当て) <span class="legend-amount" id="leftoverLabel">¥0</span></div>
+      </div>
+      <div class="fixed-items" id="fixedItemsList"></div>
+      <div id="balanceAdviceBox" class="advice small good">
+        <span class="advice-icon" id="balanceAdviceIcon">🙂</span>
+        <span id="balanceAdviceText"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-trends">
+    <div class="card">
+      <div class="chart-card-title">
+        <span class="t">🤖 家計アドバイザー</span>
+      </div>
+      <div id="advisorMessages"></div>
+    </div>
+
+    <div class="card">
+      <div class="chart-card-title">
+        <span class="t">今月の支出ペース</span>
+        <span class="s" id="paceChartSub"></span>
+      </div>
+      <div id="paceChart"></div>
+      <div class="chart-legend">
+        <span class="legend-item"><span class="legend-line actual"></span>実際の累計支出</span>
+        <span class="legend-item"><span class="legend-line ideal"></span>理想ペース</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chart-card-title">
+        <span class="t">月ごとの支出推移</span>
+      </div>
+      <div class="history-bars" id="historyBars"></div>
+    </div>
+
+    <div class="section-title"><span>今月の支出履歴</span><span class="total" id="monthTotalLabel">合計 ¥0</span></div>
+    <div class="expense-list" id="monthList"></div>
+  </div>
+
+</div>
+
+<div class="overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-title">予算の設定</div>
+  <div class="field">
+    <label>財布の残高(給料など)</label>
+    <input type="number" inputmode="numeric" id="walletInput" placeholder="例: 200000">
+  </div>
+
+  <div class="field">
+    <label>予算項目(固定費・変動費)</label>
+    <div class="budget-items" id="budgetItemsList"></div>
+    <button class="add-item-btn" onclick="addBudgetItemRow()">＋ 項目を追加</button>
+    <div class="field-hint">家賃・光熱費などは「固定」、食費など毎日記録していく分は「変動」、先取り貯金などは「貯蓄」にしてください。「変動」の合計が今日使ってよい目安額の計算に使われ、「貯蓄」は使ってよい金額から除外されます。</div>
+  </div>
+
+  <div class="field">
+    <label>データのバックアップ</label>
+    <div class="sheet-btns" style="margin-top:0;">
+      <button class="btn btn-secondary" onclick="exportData()">書き出す</button>
+      <button class="btn btn-secondary" onclick="importData()">読み込む</button>
+    </div>
+    <div class="field-hint" id="backupStatus">データはこの端末にのみ保存されています。機種変更や万一の備えに、定期的な書き出しをおすすめします。</div>
+  </div>
+
+  <div class="sheet-btns">
+    <button class="btn btn-secondary" onclick="closeSettings()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+  </div>
+</div>
+
+<script>
+const STATE_KEY = 'kakeibo-state';
+const MONTHS_JP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const DAYS_JP = ['日','月','火','水','木','金','土'];
+const DEFAULT_ITEMS = [
+  { name:'家賃', amount:0, type:'fixed' },
+  { name:'光熱費', amount:0, type:'fixed' },
+  { name:'食費', amount:0, type:'variable' },
+];
+
+function currentMonthKey(d) {
+  d = d || new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function withId(item) {
+  return { id: item.id || crypto.randomUUID(), name: item.name, amount: item.amount, type: item.type };
+}
+
+function loadState() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch(e) { s = null; }
+  const nowKey = currentMonthKey();
+
+  if (!s) {
+    return { month: nowKey, wallet: 0, budgetItems: DEFAULT_ITEMS.map(withId), expenses: [], history: {} };
+  }
+
+  // 旧バージョン(budgetItemsがなく、単一のbudgetフィールドのみ)からの移行
+  if (!s.budgetItems) {
+    const migrated = (s.budget && s.budget > 0)
+      ? [withId({ name:'変動費', amount:s.budget, type:'variable' })]
+      : DEFAULT_ITEMS.map(withId);
+    s = { month: s.month, wallet: s.wallet || 0, budgetItems: migrated, expenses: s.expenses || [], history: s.history || {} };
+  }
+  if (!s.history) s.history = {};
+
+  if (s.month !== nowKey) {
+    // 月が変わったので、前月の支出合計を履歴に保存してから支出をリセット(予算項目は引き継ぐ)
+    const prevTotal = (s.expenses || []).reduce((sum, e) => sum + e.amount, 0);
+    s.history[s.month] = prevTotal;
+    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history };
+  }
+  return s;
+}
+function saveState(s) {
+  localStorage.setItem(STATE_KEY, JSON.stringify(s));
+}
+
+let state = loadState();
+
+function yen(n) {
+  return '¥' + Math.round(n).toLocaleString('ja-JP');
+}
+
+function fixedTotal() {
+  return state.budgetItems.filter(i => i.type === 'fixed').reduce((sum, i) => sum + i.amount, 0);
+}
+function variableBudget() {
+  return state.budgetItems.filter(i => i.type === 'variable').reduce((sum, i) => sum + i.amount, 0);
+}
+function savingsTotal() {
+  return state.budgetItems.filter(i => i.type === 'savings').reduce((sum, i) => sum + i.amount, 0);
+}
+
+function calc() {
+  const now = new Date();
+  const [y, m] = state.month.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const daysRemaining = daysInMonth - dayOfMonth + 1;
+
+  const budget = variableBudget();
+  const leftover = Math.max(0, (state.wallet || 0) - fixedTotal() - budget - savingsTotal()); // 財布の残高から固定費・変動費予算・貯蓄を引いた未割り当て分
+  const effectiveBudget = budget + leftover; // 今日使ってよい目安額の計算に、この未割り当て分も含める
+
+  const totalSpent = state.expenses.reduce((sum, e) => sum + e.amount, 0);
+  const remainingBudget = budget - totalSpent; // 変動費予算のみの残り(内訳カード等で使用)
+  const effectiveRemaining = effectiveBudget - totalSpent; // 未割り当て分を含めた残り
+  const todayAllowance = daysRemaining > 0 ? effectiveRemaining / daysRemaining : effectiveRemaining;
+
+  const idealPaceSpent = effectiveBudget * (dayOfMonth / daysInMonth);
+  const paceDiff = idealPaceSpent - totalSpent; // プラス=順調、マイナス=使いすぎ
+
+  return { daysInMonth, dayOfMonth, daysRemaining, budget, leftover, effectiveBudget, totalSpent, remainingBudget, effectiveRemaining, todayAllowance, paceDiff };
+}
+
+function render() {
+  const now = new Date();
+  document.getElementById('monthLabel').textContent = `${now.getFullYear()}年${MONTHS_JP[now.getMonth()]}`;
+  document.getElementById('todayDate').textContent = `${now.getMonth()+1}月${now.getDate()}日(${DAYS_JP[now.getDay()]})`;
+
+  const c = calc();
+
+  document.getElementById('remainingBudget').textContent = yen(c.remainingBudget);
+  document.getElementById('remainingDays').textContent = `${c.daysRemaining}日`;
+  document.getElementById('monthTotalLabel').textContent = `合計 ${yen(c.totalSpent)}`;
+  document.getElementById('todayAllowance').textContent = yen(Math.max(0, c.todayAllowance));
+  document.getElementById('todaySub').textContent = c.budget > 0
+    ? (c.leftover > 0
+        ? `(変動費残り ${yen(c.remainingBudget)} + 財布の残金 ${yen(c.leftover)}) ÷ 残り${c.daysRemaining}日`
+        : `残り変動費予算 ${yen(c.remainingBudget)} ÷ 残り${c.daysRemaining}日`)
+    : '設定(⚙)から予算を入力してください';
+
+  renderAdvice(c);
+  renderBreakdown();
+  renderBalanceAdvice();
+  renderPaceChart(c);
+  renderHistoryChart(c);
+  renderAdvisor(c);
+  renderLists();
+}
+
+function renderAdvice(c) {
+  const box = document.getElementById('adviceBox');
+  const icon = document.getElementById('adviceIcon');
+  const text = document.getElementById('adviceText');
+
+  if (c.budget <= 0) {
+    box.className = 'advice warn';
+    icon.textContent = '⚠️';
+    text.textContent = '右上の⚙から予算項目を設定してください';
+    return;
+  }
+  if (c.effectiveRemaining < 0) {
+    box.className = 'advice danger';
+    icon.textContent = '🚨';
+    text.textContent = `使ってよい金額を ${yen(-c.effectiveRemaining)} 超過しています`;
+    return;
+  }
+  const ratio = c.paceDiff / c.effectiveBudget; // ペースのズレを、残金込みの実質予算に対する割合で評価
+  if (ratio >= 0.10) {
+    box.className = 'advice good';
+    icon.textContent = '🙂';
+    text.textContent = '順調です。このペースなら余裕があります';
+  } else if (ratio <= -0.10) {
+    box.className = 'advice danger';
+    icon.textContent = '😥';
+    text.textContent = 'やや使いすぎです。ペースを落としましょう';
+  } else {
+    box.className = 'advice warn';
+    icon.textContent = '😐';
+    text.textContent = 'ほぼ予定通りのペースです';
+  }
+}
+
+function renderBreakdown() {
+  const fixed = fixedTotal();
+  const variable = variableBudget();
+  const savings = savingsTotal();
+  const wallet = state.wallet || 0;
+  const allocated = fixed + variable + savings;
+  const leftover = wallet - allocated; // 財布の残高から固定費・変動費予算・貯蓄を引いた残り
+
+  // 凡例用パーセント(財布の残高に対する割合。wallet=0の場合は計算しない)
+  const pct = (n) => wallet > 0 ? Math.round(n / wallet * 100) : null;
+  const pctLabel = (n) => { const p = pct(n); return p === null ? '' : ` (${p}%)`; };
+
+  document.getElementById('fixedTotalLabel').textContent = yen(fixed) + pctLabel(fixed);
+  document.getElementById('variableTotalLabel').textContent = yen(variable) + pctLabel(variable);
+  document.getElementById('savingsTotalLabel').textContent = yen(savings) + pctLabel(savings);
+  document.getElementById('leftoverLabel').textContent = yen(leftover) + pctLabel(leftover);
+  document.getElementById('breakdownTotal').textContent = wallet > 0 ? `財布の残高 ${yen(wallet)}` : '';
+
+  const bar = document.getElementById('breakdownBar');
+  const warnBox = document.getElementById('breakdownWarn');
+
+  if (wallet <= 0) {
+    bar.innerHTML = '';
+    warnBox.innerHTML = '';
+  } else if (leftover < 0) {
+    // 固定費+変動費予算+貯蓄が財布の残高を超えている
+    const fixedPct = Math.min(100, fixed / wallet * 100);
+    const varPct = Math.min(100 - fixedPct, variable / wallet * 100);
+    const savePct = Math.max(0, Math.min(100 - fixedPct - varPct, savings / wallet * 100));
+    bar.innerHTML = `<div class="breakdown-seg fixed" style="width:${fixedPct.toFixed(2)}%"></div><div class="breakdown-seg variable" style="width:${varPct.toFixed(2)}%"></div><div class="breakdown-seg savings" style="width:${savePct.toFixed(2)}%"></div>`;
+    warnBox.innerHTML = `<div class="breakdown-warn">⚠️ 固定費・変動費予算・貯蓄の合計が、財布の残高を ${yen(-leftover)} 超えています</div>`;
+  } else {
+    const fixedPct = (fixed / wallet * 100).toFixed(2);
+    const varPct = (variable / wallet * 100).toFixed(2);
+    const savePct = (savings / wallet * 100).toFixed(2);
+    const leftoverPct = (leftover / wallet * 100).toFixed(2);
+    bar.innerHTML = `<div class="breakdown-seg fixed" style="width:${fixedPct}%"></div><div class="breakdown-seg variable" style="width:${varPct}%"></div><div class="breakdown-seg savings" style="width:${savePct}%"></div><div class="breakdown-seg leftover" style="width:${leftoverPct}%"></div>`;
+    warnBox.innerHTML = '';
+  }
+
+  const fixedItems = state.budgetItems.filter(i => i.type === 'fixed' && i.amount > 0);
+  const list = document.getElementById('fixedItemsList');
+  list.innerHTML = fixedItems.length
+    ? fixedItems.map(i => `<div class="fixed-item-row"><span>${escapeHtml(i.name || '(名称未設定)')}</span><span>${yen(i.amount)}</span></div>`).join('')
+    : '';
+}
+
+// 固定費・変動費のバランスに関するアドバイス
+// 目安:固定費は財布の残高の50%以下が健全、住居費(家賃)単体は25〜30%以内が一般的な目安
+function renderBalanceAdvice() {
+  const box = document.getElementById('balanceAdviceBox');
+  const icon = document.getElementById('balanceAdviceIcon');
+  const text = document.getElementById('balanceAdviceText');
+  const wallet = state.wallet || 0;
+  const fixed = fixedTotal();
+
+  if (wallet <= 0 || fixed <= 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'flex';
+
+  const ratio = fixed / wallet;
+  const pct = Math.round(ratio * 100);
+
+  let level, msg;
+  if (ratio <= 0.5) {
+    level = 'good';
+    icon.textContent = '🙂';
+    msg = `固定費は財布の残高の${pct}%です。50%以下で健全なバランスです`;
+  } else if (ratio <= 0.6) {
+    level = 'warn';
+    icon.textContent = '😐';
+    msg = `固定費がやや高めです(${pct}%)。一般的な目安は50%以下です`;
+  } else {
+    level = 'danger';
+    icon.textContent = '😥';
+    msg = `固定費の割合が高すぎます(${pct}%)。60%を超えると変動費や貯蓄の余地が少なくなります`;
+  }
+
+  const rentItem = state.budgetItems.find(i => i.type === 'fixed' && /家賃|住居/.test(i.name));
+  if (rentItem) {
+    const rentRatio = rentItem.amount / wallet;
+    if (rentRatio > 0.3) {
+      msg += `。家賃は残高の${Math.round(rentRatio*100)}%で、目安(25〜30%)を超えています`;
+      if (level === 'good') level = 'warn';
+    }
+  }
+
+  box.className = `advice small ${level}`;
+  text.textContent = msg;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ===== ①月内の支出ペースをグラフ表示 =====
+function dailyCumulativeSpend(c) {
+  const dayTotals = new Array(c.daysInMonth + 1).fill(0);
+  state.expenses.forEach(e => {
+    const d = new Date(e.timestamp).getDate();
+    if (d >= 1 && d <= c.daysInMonth) dayTotals[d] += e.amount;
+  });
+  const cumulative = [];
+  let running = 0;
+  for (let d = 1; d <= c.dayOfMonth; d++) {
+    running += dayTotals[d];
+    cumulative.push(running);
+  }
+  return cumulative;
+}
+
+function renderPaceChart(c) {
+  const box = document.getElementById('paceChart');
+  const sub = document.getElementById('paceChartSub');
+
+  if (c.effectiveBudget <= 0) {
+    box.innerHTML = '<div class="empty-state">予算を設定するとグラフが表示されます</div>';
+    sub.textContent = '';
+    return;
+  }
+
+  const cumulative = dailyCumulativeSpend(c);
+  const lastActual = cumulative[cumulative.length - 1] || 0;
+  const maxY = Math.max(c.effectiveBudget, lastActual) * 1.05;
+  const W = 300, H = 100, PAD_TOP = 8, PAD_BOTTOM = 4;
+  const plotH = H - PAD_TOP - PAD_BOTTOM;
+
+  const xAt = (day) => (c.daysInMonth <= 1) ? 0 : (day - 1) / (c.daysInMonth - 1) * W;
+  const yAt = (val) => PAD_TOP + plotH - (val / maxY) * plotH;
+
+  const idealPath = `M ${xAt(1).toFixed(1)},${yAt(0).toFixed(1)} L ${xAt(c.daysInMonth).toFixed(1)},${yAt(c.effectiveBudget).toFixed(1)}`;
+
+  let actualPath = '';
+  cumulative.forEach((val, i) => {
+    const day = i + 1;
+    actualPath += (i === 0 ? 'M' : 'L') + ` ${xAt(day).toFixed(1)},${yAt(val).toFixed(1)} `;
+  });
+
+  const lastX = xAt(c.dayOfMonth);
+  const lastY = yAt(lastActual);
+  const dotColor = c.effectiveRemaining < 0 ? 'var(--danger)' : 'var(--accent)';
+
+  box.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; display:block;">
+      <line x1="0" y1="${H-PAD_BOTTOM}" x2="${W}" y2="${H-PAD_BOTTOM}" stroke="var(--border)" stroke-width="1"/>
+      <path d="${idealPath}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <path d="${actualPath.trim()}" fill="none" stroke="${dotColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="4" fill="${dotColor}"/>
+    </svg>
+  `;
+
+  sub.textContent = `${c.dayOfMonth}日目時点 ${yen(lastActual)}`;
+}
+
+// ===== ②月ごとの支出推移(棒グラフ) =====
+function renderHistoryChart(c) {
+  const box = document.getElementById('historyBars');
+  const entries = Object.entries(state.history || {})
+    .map(([month, total]) => ({ month, total }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  entries.push({ month: state.month, total: c.totalSpent, current: true });
+
+  const last6 = entries.slice(-6);
+  const maxVal = Math.max(1, ...last6.map(e => e.total));
+
+  box.innerHTML = last6.map(e => {
+    const m = Number(e.month.split('-')[1]);
+    const heightPct = Math.max(2, (e.total / maxVal) * 100);
+    return `<div class="history-bar-col">
+      <div class="history-bar${e.current ? ' current' : ''}" style="height:${heightPct}%" title="${yen(e.total)}">
+        <span class="history-bar-amount">${yen(e.total)}</span>
+      </div>
+      <div class="history-bar-label">${m}月</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== 家計アドバイザー(ルールベース・ローカル完結) =====
+function dailyAmounts(c) {
+  const dayTotals = new Array(c.daysInMonth + 1).fill(0);
+  state.expenses.forEach(e => {
+    const d = new Date(e.timestamp).getDate();
+    if (d >= 1 && d <= c.daysInMonth) dayTotals[d] += e.amount;
+  });
+  return dayTotals; // index 1..daysInMonth
+}
+
+function prevMonthKey(monthKey) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 2, 1); // mは1始まりなので-2でひとつ前の月(0始まり)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function renderAdvisor(c) {
+  const box = document.getElementById('advisorMessages');
+
+  if (c.effectiveBudget <= 0) {
+    box.innerHTML = '<div class="empty-state">予算を設定するとアドバイスが表示されます</div>';
+    return;
+  }
+  if (c.totalSpent <= 0) {
+    box.innerHTML = '<div class="empty-state">支出を記録するとアドバイスが表示されます</div>';
+    return;
+  }
+
+  const messages = [];
+
+  // ① 月末着地予測(実際のペースをもとに月末の支出額を予測)
+  const avgDaily = c.totalSpent / c.dayOfMonth;
+  const projectedTotal = avgDaily * c.daysInMonth;
+  const projectedDiff = c.effectiveBudget - projectedTotal;
+
+  if (projectedDiff >= 0) {
+    messages.push({ level: 'good', icon: '🙂', text: `このペースなら、月末の支出は約${yen(projectedTotal)}の見込みです。予算内に収まりそうです` });
+  } else {
+    messages.push({ level: 'danger', icon: '🚨', text: `このペースが続くと、月末には約${yen(projectedTotal)}(予算より${yen(-projectedDiff)}超過)の見込みです` });
+    if (c.daysRemaining > 0) {
+      messages.push({ level: 'warn', icon: '💡', text: `予算内に収めるには、残り${c.daysRemaining}日を1日${yen(Math.max(0, c.todayAllowance))}以内に抑えましょう` });
+    }
+  }
+
+  // ② 直近の支出増加傾向を検知
+  const dayTotals = dailyAmounts(c);
+  const recentN = Math.min(3, c.dayOfMonth);
+  const recentSum = Array.from({ length: recentN }, (_, i) => dayTotals[c.dayOfMonth - i]).reduce((a, b) => a + b, 0);
+  const recentAvg = recentSum / recentN;
+  const earlierDays = c.dayOfMonth - recentN;
+  if (earlierDays >= 3) {
+    const earlierSum = dayTotals.slice(1, earlierDays + 1).reduce((a, b) => a + b, 0);
+    const earlierAvg = earlierSum / earlierDays;
+    if (earlierAvg > 0 && recentAvg > earlierAvg * 1.3) {
+      messages.push({ level: 'warn', icon: '📈', text: `直近${recentN}日間の1日平均が${yen(recentAvg)}と、それ以前(${yen(earlierAvg)})より増えています` });
+    }
+  }
+
+  // ③ 先月との比較
+  const pmKey = prevMonthKey(state.month);
+  if (state.history && state.history[pmKey] !== undefined && state.history[pmKey] > 0) {
+    const prevTotal = state.history[pmKey];
+    const pct = Math.round((projectedTotal - prevTotal) / prevTotal * 100);
+    if (Math.abs(pct) >= 10) {
+      messages.push({
+        level: pct > 0 ? 'warn' : 'good',
+        icon: pct > 0 ? '📊' : '👍',
+        text: `先月の支出は${yen(prevTotal)}でした。このペースだと今月は${pct > 0 ? '+' : ''}${pct}%の見込みです`,
+      });
+    }
+  }
+
+  box.innerHTML = messages.map(m =>
+    `<div class="advice small ${m.level}" style="margin-top:.7rem;"><span class="advice-icon">${m.icon}</span><span>${m.text}</span></div>`
+  ).join('');
+}
+
+function renderLists() {
+  const todayKey = new Date().toDateString();
+  const todayList = document.getElementById('todayList');
+  const monthList = document.getElementById('monthList');
+
+  const sorted = state.expenses.slice().sort((a,b) => b.timestamp - a.timestamp);
+  const todayExpenses = sorted.filter(e => new Date(e.timestamp).toDateString() === todayKey);
+
+  todayList.innerHTML = todayExpenses.length
+    ? todayExpenses.map(e => expenseRow(e)).join('')
+    : '<div class="empty-state">今日はまだ記録がありません</div>';
+
+  monthList.innerHTML = sorted.length
+    ? sorted.map(e => expenseRow(e, true)).join('')
+    : '<div class="empty-state">今月の記録はまだありません</div>';
+}
+
+function expenseRow(e, showDate) {
+  const d = new Date(e.timestamp);
+  const dateStr = showDate
+    ? `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+    : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `<div class="expense-row">
+    <span class="expense-date">${dateStr}</span>
+    <span class="expense-amount">${yen(e.amount)}</span>
+    <button class="expense-del" onclick="deleteExpense('${e.id}')">✕</button>
+  </div>`;
+}
+
+function addExpense() {
+  const input = document.getElementById('amountInput');
+  const amount = Number(input.value);
+  if (!amount || amount <= 0) return;
+  state.expenses.push({ id: crypto.randomUUID(), amount, timestamp: Date.now() });
+  saveState(state);
+  input.value = '';
+  render();
+  input.focus();
+}
+document.getElementById('amountInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addExpense();
+});
+
+function deleteExpense(id) {
+  state.expenses = state.expenses.filter(e => e.id !== id);
+  saveState(state);
+  render();
+}
+
+// ===== 設定シート:予算項目の編集 =====
+let editingItems = [];
+
+function renderBudgetItemsEditor() {
+  const box = document.getElementById('budgetItemsList');
+  box.innerHTML = editingItems.map((item, i) => `
+    <div class="budget-item-row">
+      <input type="text" value="${escapeHtml(item.name)}" placeholder="項目名" oninput="editingItems[${i}].name=this.value">
+      <input type="number" inputmode="numeric" value="${item.amount || ''}" placeholder="金額" oninput="editingItems[${i}].amount=Number(this.value)||0">
+      <div class="type-toggle">
+        <button type="button" data-type="fixed" class="${item.type==='fixed'?'active':''}" onclick="setItemType(${i},'fixed')">固定</button>
+        <button type="button" data-type="variable" class="${item.type==='variable'?'active':''}" onclick="setItemType(${i},'variable')">変動</button>
+        <button type="button" data-type="savings" class="${item.type==='savings'?'active':''}" onclick="setItemType(${i},'savings')">貯蓄</button>
+      </div>
+      <button class="item-del" onclick="removeBudgetItemRow(${i})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+function setItemType(i, type) {
+  editingItems[i].type = type;
+  renderBudgetItemsEditor();
+}
+function addBudgetItemRow() {
+  editingItems.push({ id: crypto.randomUUID(), name:'', amount:0, type:'variable' });
+  renderBudgetItemsEditor();
+}
+function removeBudgetItemRow(i) {
+  editingItems.splice(i, 1);
+  renderBudgetItemsEditor();
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + name));
+}
+
+function openSettings() {
+  document.getElementById('walletInput').value = state.wallet || '';
+  editingItems = state.budgetItems.map(i => ({ ...i }));
+  renderBudgetItemsEditor();
+  document.getElementById('settingsOverlay').classList.add('open');
+  document.getElementById('settingsSheet').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+  document.getElementById('settingsSheet').classList.remove('open');
+}
+function saveSettings() {
+  state.wallet = Number(document.getElementById('walletInput').value) || 0;
+  state.budgetItems = editingItems.filter(i => i.name.trim() !== '' || i.amount > 0);
+  saveState(state);
+  closeSettings();
+  render();
+}
+
+// ===== ③データのバックアップ =====
+function backupStatusMsg(text) {
+  const el = document.getElementById('backupStatus');
+  el.textContent = text;
+  setTimeout(() => {
+    el.textContent = 'データはこの端末にのみ保存されています。機種変更や万一の備えに、定期的な書き出しをおすすめします。';
+  }, 4000);
+}
+
+async function exportData() {
+  const json = JSON.stringify(state, null, 2);
+  if (window.desktopAPI && window.desktopAPI.exportData) {
+    try {
+      const result = await window.desktopAPI.exportData(json);
+      if (result && result.ok) backupStatusMsg('✅ 書き出しました');
+    } catch (e) {
+      backupStatusMsg('書き出しに失敗しました');
+    }
+    return;
+  }
+  // デスクトップAPIがない場合のフォールバック(ブラウザのダウンロード)
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `家計簿バックアップ_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importData() {
+  if (window.desktopAPI && window.desktopAPI.importData) {
+    try {
+      const result = await window.desktopAPI.importData();
+      if (result && result.ok) applyImportedData(result.content);
+    } catch (e) {
+      backupStatusMsg('読み込みに失敗しました');
+    }
+    return;
+  }
+  // デスクトップAPIがない場合のフォールバック(ファイル選択)
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = () => {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => applyImportedData(reader.result);
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function applyImportedData(content) {
+  let imported;
+  try { imported = JSON.parse(content); } catch (e) {
+    backupStatusMsg('ファイルの形式が正しくありません');
+    return;
+  }
+  if (!imported || typeof imported !== 'object' || !imported.month) {
+    backupStatusMsg('ファイルの形式が正しくありません');
+    return;
+  }
+  state = {
+    month: imported.month,
+    wallet: imported.wallet || 0,
+    budgetItems: imported.budgetItems || DEFAULT_ITEMS.map(withId),
+    expenses: imported.expenses || [],
+    history: imported.history || {},
+  };
+  state = loadStateFromObject(state);
+  saveState(state);
+  closeSettings();
+  render();
+  backupStatusMsg('✅ 読み込みました');
+}
+
+// 読み込んだデータについても、月またぎのアーカイブ処理を通す
+function loadStateFromObject(s) {
+  const nowKey = currentMonthKey();
+  if (s.month !== nowKey) {
+    const prevTotal = (s.expenses || []).reduce((sum, e) => sum + e.amount, 0);
+    s.history[s.month] = prevTotal;
+    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history };
+  }
+  return s;
+}
+
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+</script>
+</body>
+</html>
