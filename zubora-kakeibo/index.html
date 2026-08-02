@@ -28,7 +28,7 @@
 
   .header { position:fixed; top:0; left:0; right:0; z-index:110; background:var(--bg); text-align:center; padding:1rem 1.2rem .6rem; border-bottom:1px solid var(--border); }
   .header-inner { max-width:480px; margin:0 auto; }
-  .header-top { display:flex; align-items:center; justify-content:center; gap:.45rem; margin-bottom:.15rem; }
+  .header-top { position:relative; display:flex; align-items:center; justify-content:center; min-height:36px; margin-bottom:.15rem; }
   .app-title { font-size:1.05rem; font-weight:800; letter-spacing:.01em; color:var(--text); }
   .header h1 { font-size:.8rem; font-weight:600; letter-spacing:.04em; color:var(--muted); }
 
@@ -128,7 +128,7 @@
   .empty-state { text-align:center; color:var(--muted); font-size:.85rem; padding:2rem 1rem; }
 
   /* 設定 */
-  .settings-btn { flex:none; width:26px; height:26px; border-radius:50%; background:var(--card); border:1px solid var(--border); color:var(--muted); font-size:.82rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .settings-btn { position:absolute; right:4rem; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:50%; background:var(--card); border:1px solid var(--border); color:var(--muted); font-size:1.05rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .settings-btn:active { opacity:.7; }
 
   .overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:300; opacity:0; pointer-events:none; transition:opacity .2s; }
