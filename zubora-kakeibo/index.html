@@ -164,6 +164,39 @@
   .item-del:active { opacity:.5; }
   .add-item-btn { padding:.7rem; background:var(--bg); border:1px dashed var(--border); border-radius:10px; color:var(--muted); font-size:.85rem; font-weight:600; cursor:pointer; width:100%; margin-top:.2rem; }
   .add-item-btn:active { opacity:.6; }
+
+  /* クイック金額ボタン */
+  .quick-amounts { display:flex; gap:.5rem; margin-top:.7rem; }
+  .quick-amt-btn { flex:1; padding:.6rem .3rem; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:.82rem; font-weight:700; cursor:pointer; font-variant-numeric:tabular-nums; }
+  .quick-amt-btn:active { opacity:.6; background:var(--accent-wash); }
+
+  /* リマインダーバナー */
+  .reminder-banner { display:none; align-items:center; justify-content:space-between; gap:.6rem; background:var(--warn); color:#fff; padding:.75rem 1.1rem; border-radius:14px; font-size:.85rem; font-weight:600; margin-bottom:1rem; }
+  .reminder-banner button { background:none; border:none; color:#fff; font-size:1rem; cursor:pointer; opacity:.85; flex:none; padding:0 .2rem; }
+  .reminder-banner button:active { opacity:.5; }
+
+  /* 設定内リマインダー */
+  .reminder-row { display:flex; align-items:center; gap:1rem; margin-top:.2rem; }
+  .reminder-checkbox { display:flex; align-items:center; gap:.45rem; font-size:.9rem; color:var(--text); cursor:pointer; }
+  .reminder-checkbox input { width:16px; height:16px; }
+  .reminder-time-input { padding:.55rem .6rem; border:1px solid var(--border); border-radius:9px; background:var(--bg); color:var(--text); font-size:.88rem; }
+  .reminder-time-input:disabled { opacity:.4; }
+
+  /* 初回起動ウィザード */
+  .onboarding-sheet { display:none; position:fixed; inset:0; z-index:500; background:var(--bg); flex-direction:column; align-items:center; justify-content:center; padding:2rem 1.6rem; text-align:center; }
+  .onboarding-sheet.open { display:flex; }
+  .onboarding-step { display:none; width:100%; max-width:340px; flex-direction:column; align-items:center; gap:1.1rem; }
+  .onboarding-step.active { display:flex; }
+  .ob-emoji { font-size:3rem; }
+  .ob-title { font-size:1.1rem; font-weight:800; line-height:1.55; }
+  .ob-desc { font-size:.86rem; color:var(--muted); line-height:1.7; }
+  .ob-hint { font-size:.76rem; color:var(--muted); margin-top:-.6rem; }
+  .ob-input { width:100%; padding:1rem; font-size:1.3rem; text-align:center; border:1px solid var(--border); border-radius:12px; background:var(--card); color:var(--text); font-variant-numeric:tabular-nums; }
+  .ob-input:focus { outline:none; border-color:var(--accent); }
+  .ob-progress { display:flex; gap:.4rem; margin-bottom:.4rem; }
+  .ob-progress span { width:6px; height:6px; border-radius:50%; background:var(--border); }
+  .ob-progress span.done { background:var(--accent); }
+  .ob-skip { background:none; border:none; color:var(--muted); font-size:.82rem; text-decoration:underline; cursor:pointer; margin-top:.2rem; }
 </style>
 </head>
 <body>
@@ -190,6 +223,10 @@
 
   <div class="page active" id="page-today">
     <div class="today-date" id="todayDate"></div>
+    <div class="reminder-banner" id="reminderBanner">
+      <span>🔔 今日はまだ支出を記録していません</span>
+      <button onclick="dismissReminderBanner()" title="閉じる">✕</button>
+    </div>
     <div class="card today-allowance">
       <div class="dash-label">今日使ってよい目安額</div>
       <div class="dash-value" id="todayAllowance">¥0</div>
@@ -216,6 +253,12 @@
       <div class="entry-row">
         <input type="number" inputmode="numeric" class="entry-input" id="amountInput" placeholder="支出金額を入力">
         <button class="entry-btn" onclick="addExpense()">記録</button>
+      </div>
+      <div class="quick-amounts">
+        <button class="quick-amt-btn" onclick="addExpense(300)">¥300</button>
+        <button class="quick-amt-btn" onclick="addExpense(500)">¥500</button>
+        <button class="quick-amt-btn" onclick="addExpense(1000)">¥1,000</button>
+        <button class="quick-amt-btn" onclick="addExpense(3000)">¥3,000</button>
       </div>
     </div>
 
@@ -294,6 +337,15 @@
   </div>
 
   <div class="field">
+    <label>リマインダー</label>
+    <div class="reminder-row">
+      <label class="reminder-checkbox"><input type="checkbox" id="reminderEnabledInput" onchange="onReminderToggleChange()"> 有効にする</label>
+      <input type="time" id="reminderTimeInput" class="reminder-time-input" value="20:00">
+    </div>
+    <div class="field-hint">指定時刻までにその日の支出が未記録の場合、アプリを開いている間にお知らせします(アプリを閉じている間は通知されません)。</div>
+  </div>
+
+  <div class="field">
     <label>データのバックアップ</label>
     <div class="sheet-btns" style="margin-top:0;">
       <button class="btn btn-secondary" onclick="exportData()">書き出す</button>
@@ -305,6 +357,45 @@
   <div class="sheet-btns">
     <button class="btn btn-secondary" onclick="closeSettings()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveSettings()">保存</button>
+  </div>
+</div>
+
+<div class="onboarding-sheet" id="onboardingSheet">
+  <div class="onboarding-step active" id="obStep1">
+    <div class="ob-emoji">👋</div>
+    <div class="ob-title">ようこそ、ずぼら家計簿へ</div>
+    <div class="ob-desc">3つの質問に答えるだけで準備完了です。<br>細かいことは後からいつでも変更できます。</div>
+    <button class="btn btn-primary" onclick="obShow(2)">はじめる</button>
+    <button class="ob-skip" onclick="obSkip()">スキップする</button>
+  </div>
+
+  <div class="onboarding-step" id="obStep2">
+    <div class="ob-progress"><span class="done"></span><span></span><span></span></div>
+    <div class="ob-title">財布の残高(今月使えるお金)は、いくらですか?</div>
+    <input type="number" inputmode="numeric" class="ob-input" id="obWallet" placeholder="例: 200000">
+    <button class="btn btn-primary" onclick="obNext(2)">次へ</button>
+  </div>
+
+  <div class="onboarding-step" id="obStep3">
+    <div class="ob-progress"><span class="done"></span><span class="done"></span><span></span></div>
+    <div class="ob-title">家賃や光熱費など、毎月ほぼ同じ金額の支出(固定費)は合計いくらですか?</div>
+    <div class="ob-hint">わからなければ0のままで大丈夫です</div>
+    <input type="number" inputmode="numeric" class="ob-input" id="obFixed" placeholder="例: 80000">
+    <button class="btn btn-primary" onclick="obNext(3)">次へ</button>
+  </div>
+
+  <div class="onboarding-step" id="obStep4">
+    <div class="ob-progress"><span class="done"></span><span class="done"></span><span class="done"></span></div>
+    <div class="ob-title">食費など、毎日の生活費として今月いくら使いたいですか?</div>
+    <input type="number" inputmode="numeric" class="ob-input" id="obVariable" placeholder="例: 40000">
+    <button class="btn btn-primary" onclick="obNext(4)">次へ</button>
+  </div>
+
+  <div class="onboarding-step" id="obStep5">
+    <div class="ob-emoji">🎉</div>
+    <div class="ob-title">設定完了です</div>
+    <div class="ob-desc">さっそく今日の支出を記録してみましょう。<br>細かい項目は右上の⚙からいつでも調整できます。</div>
+    <button class="btn btn-primary" onclick="obFinish()">はじめる</button>
   </div>
 </div>
 
@@ -333,7 +424,7 @@ function loadState() {
   const nowKey = currentMonthKey();
 
   if (!s) {
-    return { month: nowKey, wallet: 0, budgetItems: DEFAULT_ITEMS.map(withId), expenses: [], history: {} };
+    return { month: nowKey, wallet: 0, budgetItems: DEFAULT_ITEMS.map(withId), expenses: [], history: {}, onboarded: false, reminderEnabled: true, reminderTime: '20:00', lastReminderShownDate: null };
   }
 
   // 旧バージョン(budgetItemsがなく、単一のbudgetフィールドのみ)からの移行
@@ -345,11 +436,23 @@ function loadState() {
   }
   if (!s.history) s.history = {};
 
+  // 初回起動ウィザードの表示要否(既存データがあれば「設定済み」扱いにして表示しない)
+  if (s.onboarded === undefined) {
+    const hasData = (s.wallet > 0) || (s.expenses && s.expenses.length > 0) ||
+      (s.budgetItems && s.budgetItems.some(i => i.amount > 0)) ||
+      (s.history && Object.keys(s.history).length > 0);
+    s.onboarded = hasData;
+  }
+  if (s.reminderEnabled === undefined) s.reminderEnabled = true;
+  if (!s.reminderTime) s.reminderTime = '20:00';
+  if (s.lastReminderShownDate === undefined) s.lastReminderShownDate = null;
+
   if (s.month !== nowKey) {
     // 月が変わったので、前月の支出合計を履歴に保存してから支出をリセット(予算項目は引き継ぐ)
     const prevTotal = (s.expenses || []).reduce((sum, e) => sum + e.amount, 0);
     s.history[s.month] = prevTotal;
-    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history };
+    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history,
+      onboarded: s.onboarded, reminderEnabled: s.reminderEnabled, reminderTime: s.reminderTime, lastReminderShownDate: null };
   }
   return s;
 }
@@ -419,6 +522,38 @@ function render() {
   renderHistoryChart(c);
   renderAdvisor(c);
   renderLists();
+  updateReminderBanner();
+}
+
+// ===== リマインダー通知(アプリを開いている間のみ有効) =====
+function updateReminderBanner() {
+  const banner = document.getElementById('reminderBanner');
+  if (!banner) return;
+  if (!state.reminderEnabled) { banner.style.display = 'none'; return; }
+
+  const now = new Date();
+  const todayKey = now.toDateString();
+  const [rh, rm] = (state.reminderTime || '20:00').split(':').map(Number);
+  const reminderMoment = new Date(now.getFullYear(), now.getMonth(), now.getDate(), rh || 0, rm || 0);
+  const hasTodayExpense = state.expenses.some(e => new Date(e.timestamp).toDateString() === todayKey);
+
+  const shouldShow = now >= reminderMoment && !hasTodayExpense;
+  banner.style.display = shouldShow ? 'flex' : 'none';
+
+  // ネイティブ通知は1日1回だけ試みる(アプリが開いている時のみ届く)
+  if (shouldShow && state.lastReminderShownDate !== todayKey) {
+    state.lastReminderShownDate = todayKey;
+    saveState(state);
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try { new Notification('ずぼら家計簿', { body: '今日はまだ支出を記録していません。忘れずに記録しましょう', icon: 'icon-192.png' }); } catch (e) {}
+    }
+  }
+}
+function dismissReminderBanner() {
+  document.getElementById('reminderBanner').style.display = 'none';
+}
+function onReminderToggleChange() {
+  document.getElementById('reminderTimeInput').disabled = !document.getElementById('reminderEnabledInput').checked;
 }
 
 function renderAdvice(c) {
@@ -741,15 +876,19 @@ function expenseRow(e, showDate) {
   </div>`;
 }
 
-function addExpense() {
+function addExpense(presetAmount) {
   const input = document.getElementById('amountInput');
-  const amount = Number(input.value);
+  const amount = presetAmount !== undefined ? presetAmount : Number(input.value);
   if (!amount || amount <= 0) return;
   state.expenses.push({ id: crypto.randomUUID(), amount, timestamp: Date.now() });
   saveState(state);
-  input.value = '';
-  render();
-  input.focus();
+  if (presetAmount === undefined) {
+    input.value = '';
+    render();
+    input.focus();
+  } else {
+    render();
+  }
 }
 document.getElementById('amountInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addExpense();
@@ -801,6 +940,9 @@ function openSettings() {
   document.getElementById('walletInput').value = state.wallet || '';
   editingItems = state.budgetItems.map(i => ({ ...i }));
   renderBudgetItemsEditor();
+  document.getElementById('reminderEnabledInput').checked = state.reminderEnabled !== false;
+  document.getElementById('reminderTimeInput').value = state.reminderTime || '20:00';
+  document.getElementById('reminderTimeInput').disabled = !document.getElementById('reminderEnabledInput').checked;
   document.getElementById('settingsOverlay').classList.add('open');
   document.getElementById('settingsSheet').classList.add('open');
 }
@@ -811,6 +953,13 @@ function closeSettings() {
 function saveSettings() {
   state.wallet = Number(document.getElementById('walletInput').value) || 0;
   state.budgetItems = editingItems.filter(i => i.name.trim() !== '' || i.amount > 0);
+  const wasEnabled = state.reminderEnabled;
+  state.reminderEnabled = document.getElementById('reminderEnabledInput').checked;
+  state.reminderTime = document.getElementById('reminderTimeInput').value || '20:00';
+  state.lastReminderShownDate = null; // 設定変更を即座に反映できるよう表示済みフラグをリセット
+  if (state.reminderEnabled && !wasEnabled && 'Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
   saveState(state);
   closeSettings();
   render();
@@ -897,15 +1046,63 @@ function applyImportedData(content) {
 // 読み込んだデータについても、月またぎのアーカイブ処理を通す
 function loadStateFromObject(s) {
   const nowKey = currentMonthKey();
+  if (s.onboarded === undefined) s.onboarded = true; // インポートは既存ユーザーの操作なのでウィザードは表示しない
+  if (s.reminderEnabled === undefined) s.reminderEnabled = true;
+  if (!s.reminderTime) s.reminderTime = '20:00';
   if (s.month !== nowKey) {
     const prevTotal = (s.expenses || []).reduce((sum, e) => sum + e.amount, 0);
     s.history[s.month] = prevTotal;
-    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history };
+    s = { month: nowKey, wallet: s.wallet, budgetItems: s.budgetItems, expenses: [], history: s.history,
+      onboarded: s.onboarded, reminderEnabled: s.reminderEnabled, reminderTime: s.reminderTime, lastReminderShownDate: null };
   }
   return s;
 }
 
+// ===== 初回起動ウィザード =====
+let obAnswers = { wallet: 0, fixed: 0, variable: 0 };
+
+function obShow(step) {
+  document.querySelectorAll('.onboarding-step').forEach(el => el.classList.remove('active'));
+  document.getElementById('obStep' + step).classList.add('active');
+}
+function obNext(fromStep) {
+  if (fromStep === 2) obAnswers.wallet = Number(document.getElementById('obWallet').value) || 0;
+  if (fromStep === 3) obAnswers.fixed = Number(document.getElementById('obFixed').value) || 0;
+  if (fromStep === 4) obAnswers.variable = Number(document.getElementById('obVariable').value) || 0;
+  obShow(fromStep + 1);
+}
+function obSkip() {
+  obClose(false);
+}
+function obFinish() {
+  obClose(true);
+}
+function obClose(apply) {
+  if (apply) {
+    state.wallet = obAnswers.wallet;
+    const items = [];
+    if (obAnswers.fixed > 0) items.push({ id: crypto.randomUUID(), name: '固定費(家賃・光熱費など)', amount: obAnswers.fixed, type: 'fixed' });
+    if (obAnswers.variable > 0) items.push({ id: crypto.randomUUID(), name: '生活費', amount: obAnswers.variable, type: 'variable' });
+    if (items.length) state.budgetItems = items;
+  }
+  state.onboarded = true;
+  saveState(state);
+  document.getElementById('onboardingSheet').classList.remove('open');
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  render();
+}
+['obWallet', 'obFixed', 'obVariable'].forEach((id, idx) => {
+  document.getElementById(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') obNext(idx + 2);
+  });
+});
+
 render();
+if (!state.onboarded) {
+  obShow(1);
+  document.getElementById('onboardingSheet').classList.add('open');
+}
+setInterval(updateReminderBanner, 5 * 60 * 1000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 </script>
 </body>
