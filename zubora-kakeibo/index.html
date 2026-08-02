@@ -24,15 +24,17 @@
   }
   html,body { height:100%; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; overflow-x:hidden; }
 
-  .app { max-width:480px; margin:0 auto; padding:7.8rem 1.2rem 3rem; min-height:100vh; }
+  .app { max-width:480px; margin:0 auto; padding:9.4rem 1.2rem 3rem; min-height:100vh; }
 
-  .header { position:fixed; top:0; left:0; right:0; z-index:110; background:var(--bg); text-align:center; padding:1rem 1.2rem .6rem; border-bottom:1px solid var(--border); }
-  .header-inner { max-width:480px; margin:0 auto; }
-  .header-top { position:relative; display:flex; align-items:center; justify-content:center; min-height:36px; margin-bottom:.15rem; }
+  .top-bar { position:fixed; top:0; left:0; right:0; z-index:110; background:var(--bg); }
+
+  .header { text-align:center; padding:1.1rem 1.2rem .8rem; }
+  .header-inner { max-width:480px; margin:0 auto; position:relative; }
+  .header-top { display:flex; align-items:center; justify-content:center; margin-bottom:.15rem; }
   .app-title { font-size:1.05rem; font-weight:800; letter-spacing:.01em; color:var(--text); }
   .header h1 { font-size:.8rem; font-weight:600; letter-spacing:.04em; color:var(--muted); }
 
-  .tabs { display:flex; position:fixed; top:4.2rem; left:0; right:0; z-index:105; background:var(--card); border-bottom:1px solid var(--border); max-width:480px; margin:0 auto; }
+  .tabs { display:flex; background:var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border); max-width:480px; margin:0 auto; }
   .tab { flex:1; text-align:center; padding:.65rem 0; font-size:.76rem; font-weight:600; color:var(--muted); cursor:pointer; }
   .tab-icon { font-size:1rem; display:block; margin-bottom:1px; }
   .tab.active { color:var(--accent); border-bottom:2px solid var(--accent); }
@@ -166,20 +168,22 @@
 </head>
 <body>
 
-<div class="header">
-  <div class="header-inner">
-    <div class="header-top">
-      <div class="app-title">家計簿</div>
+<div class="top-bar">
+  <div class="header">
+    <div class="header-inner">
       <button class="settings-btn" id="settingsBtn" onclick="openSettings()" title="設定">⚙</button>
+      <div class="header-top">
+        <div class="app-title">家計簿</div>
+      </div>
+      <h1 id="monthLabel">2026年8月</h1>
     </div>
-    <h1 id="monthLabel">2026年8月</h1>
   </div>
-</div>
 
-<div class="tabs">
-  <div class="tab active" data-tab="today" onclick="switchTab('today')"><span class="tab-icon">📝</span>今日</div>
-  <div class="tab" data-tab="breakdown" onclick="switchTab('breakdown')"><span class="tab-icon">📊</span>内訳</div>
-  <div class="tab" data-tab="trends" onclick="switchTab('trends')"><span class="tab-icon">📈</span>推移</div>
+  <div class="tabs">
+    <div class="tab active" data-tab="today" onclick="switchTab('today')"><span class="tab-icon">📝</span>今日</div>
+    <div class="tab" data-tab="breakdown" onclick="switchTab('breakdown')"><span class="tab-icon">📊</span>内訳</div>
+    <div class="tab" data-tab="trends" onclick="switchTab('trends')"><span class="tab-icon">📈</span>推移</div>
+  </div>
 </div>
 
 <div class="app">
