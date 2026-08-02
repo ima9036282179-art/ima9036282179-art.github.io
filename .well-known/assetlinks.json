@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.imakara.kakeibo",
+    "sha256_cert_fingerprints": ["11:84:70:3A:59:56:C0:4F:A4:70:BC:7E:4D:DB:D5:35:8D:19:5F:09:02:6F:5F:29:38:57:F8:46:36:EF:3C:52"]
+  }
+}]
