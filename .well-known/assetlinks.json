@@ -5,4 +5,11 @@
     "package_name": "com.imakara.kakeibo",
     "sha256_cert_fingerprints": ["11:84:70:3A:59:56:C0:4F:A4:70:BC:7E:4D:DB:D5:35:8D:19:5F:09:02:6F:5F:29:38:57:F8:46:36:EF:3C:52"]
   }
+}, {
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.imakara.solfeggio",
+    "sha256_cert_fingerprints": ["E8:3C:D7:F6:29:50:16:28:0B:96:CE:4B:0B:EC:A3:CA:13:BF:F9:6C:EC:86:C0:44:9C:AD:65:1E:8C:9F:A6:E5"]
+  }
 }]
