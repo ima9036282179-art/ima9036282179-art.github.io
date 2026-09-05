@@ -10,6 +10,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.imakara.solfeggio",
-    "sha256_cert_fingerprints": ["E8:3C:D7:F6:29:50:16:28:0B:96:CE:4B:0B:EC:A3:CA:13:BF:F9:6C:EC:86:C0:44:9C:AD:65:1E:8C:9F:A6:E5"]
+    "sha256_cert_fingerprints": ["EB:B2:2C:07:3F:3C:61:1B:90:95:91:E6:AF:44:FE:0B:D3:76:A7:B7:8C:71:C1:E5:A5:2B:BC:84:8F:75:CF:A6"]
   }
 }]
