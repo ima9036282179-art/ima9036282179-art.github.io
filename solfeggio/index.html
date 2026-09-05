@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ソルフェジオ周波数プレイヤー</title>
+<meta name="description" content="9種類のソルフェジオ周波数を、心地よい響きで聴けるリラクゼーション・瞑想アプリ。">
+<meta name="theme-color" content="#0e0a1f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg-0:#0b0818;
+    --bg-1:#140f2b;
+    --card-bg:rgba(255,255,255,0.045);
+    --card-border:rgba(255,255,255,0.09);
+    --card-border-active:rgba(255,255,255,0.28);
+    --text-0:#f3f1fb;
+    --text-1:#b9b3d1;
+    --text-2:#7c7594;
+    --accent:#9b8cff;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:"Hiragino Sans","Yu Gothic UI","Segoe UI",system-ui,-apple-system,sans-serif;
+    color:var(--text-0);
+    background:
+      radial-gradient(60% 50% at 18% 8%, rgba(120,90,255,0.20), transparent 60%),
+      radial-gradient(55% 45% at 85% 12%, rgba(255,140,190,0.12), transparent 60%),
+      radial-gradient(70% 60% at 50% 100%, rgba(70,60,180,0.20), transparent 60%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    background-attachment:fixed;
+    min-height:100%;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .aurora{
+    position:fixed; inset:-20% -10%; z-index:0; pointer-events:none;
+    filter:blur(60px); opacity:0.55;
+  }
+  .aurora span{
+    position:absolute; border-radius:50%;
+    width:38vw; height:38vw; min-width:280px; min-height:280px;
+  }
+  .aurora span:nth-child(1){ background:radial-gradient(circle, rgba(155,140,255,0.55), transparent 70%); left:5%; top:0%; animation:float1 18s ease-in-out infinite; }
+  .aurora span:nth-child(2){ background:radial-gradient(circle, rgba(255,150,200,0.4), transparent 70%); right:0%; top:10%; animation:float2 22s ease-in-out infinite; }
+  .aurora span:nth-child(3){ background:radial-gradient(circle, rgba(120,220,220,0.35), transparent 70%); left:20%; bottom:-10%; animation:float3 26s ease-in-out infinite; }
+  @keyframes float1{ 0%,100%{ transform:translate(0,0);} 50%{ transform:translate(6vw,4vh);} }
+  @keyframes float2{ 0%,100%{ transform:translate(0,0);} 50%{ transform:translate(-5vw,6vh);} }
+  @keyframes float3{ 0%,100%{ transform:translate(0,0);} 50%{ transform:translate(4vw,-5vh);} }
+
+  .app{ position:relative; z-index:1; max-width:720px; margin:0 auto; padding:28px 18px calc(200px + var(--safe-b)); }
+
+  header.top{ text-align:center; margin-bottom:22px; }
+  header.top h1{ font-size:1.28rem; font-weight:700; margin:0 0 4px; letter-spacing:.02em; }
+  header.top p{ margin:0; color:var(--text-1); font-size:.82rem; line-height:1.6; }
+
+  .stage{
+    position:relative; width:100%; aspect-ratio:16/10; margin-bottom:18px;
+    border-radius:20px; overflow:hidden; background:#0b0818;
+    border:1px solid var(--card-border);
+    box-shadow:0 20px 50px -24px rgba(0,0,0,0.7);
+  }
+  .stage video, .stage img.stage-bg{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    display:block; transition:opacity 1s ease;
+  }
+  .stage video[hidden], .stage img.stage-bg[hidden]{ display:none; }
+  .stage .bg-pick{
+    position:absolute; top:10px; left:12px; z-index:1;
+    display:flex; align-items:center; gap:5px;
+    background:rgba(10,8,20,0.55); border:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.75);
+    border-radius:999px; padding:5px 10px 5px 8px; font-size:.64rem; cursor:pointer;
+    backdrop-filter:blur(6px); transition:background .2s, color .2s;
+  }
+  .stage .bg-pick:hover{ background:rgba(10,8,20,0.75); color:#fff; }
+  .stage .bg-pick[hidden]{ display:none; }
+  .stage .bg-active{
+    position:absolute; top:10px; left:12px; z-index:1;
+    display:flex; align-items:center; gap:8px; max-width:70%;
+    background:rgba(10,8,20,0.55); border:1px solid rgba(255,255,255,0.15);
+    border-radius:999px; padding:5px 10px; font-size:.64rem; color:rgba(255,255,255,0.75);
+    backdrop-filter:blur(6px);
+  }
+  .stage .bg-active[hidden]{ display:none; }
+  .stage .bg-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px; }
+  .stage .bg-reset{
+    background:none; border:none; color:rgba(255,255,255,0.9); font-size:.64rem;
+    cursor:pointer; text-decoration:underline; flex:0 0 auto; padding:0;
+  }
+  .stage-caption{
+    position:absolute; left:0; right:0; bottom:0; z-index:1;
+    padding:14px 18px 16px; display:flex; flex-direction:column; gap:2px;
+    background:linear-gradient(180deg, transparent, rgba(4,2,10,0.55) 30%, rgba(4,2,10,0.88) 100%);
+  }
+  .stage-caption .hz{ font-weight:700; font-size:1.05rem; }
+  .stage-caption .tag{ font-size:.76rem; color:var(--text-1); }
+  .stage-caption .effect{
+    display:block; font-size:.74rem; color:var(--text-2); line-height:1.7;
+    margin-top:6px; max-width:46em;
+  }
+  .stage-credit{
+    position:absolute; top:10px; right:12px; z-index:1;
+    font-size:.62rem; color:rgba(255,255,255,0.45);
+    letter-spacing:.02em; pointer-events:none;
+  }
+  .stage-loading{
+    position:absolute; inset:0; z-index:2; display:flex; align-items:center; justify-content:center;
+    background:rgba(11,8,24,0.32); transition:opacity .25s ease; pointer-events:none;
+  }
+  .stage-loading[hidden]{ display:none; }
+  .stage-loading .spinner{
+    width:32px; height:32px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.18); border-top-color:rgba(255,255,255,0.9);
+    animation:stage-spin 0.85s linear infinite;
+  }
+  @keyframes stage-spin{ to{ transform:rotate(360deg); } }
+
+  .scenes{ margin:20px 0 26px; }
+  .scenes h2{ font-size:.92rem; font-weight:700; margin:0 0 4px; color:var(--text-0); }
+  .scenes-sub{ font-size:.74rem; color:var(--text-2); margin:0 0 12px; }
+  .scene-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(170px,1fr));
+    gap:8px;
+  }
+  .scene-chip{
+    display:flex; align-items:center; gap:9px; text-align:left;
+    background:var(--card-bg); border:1px solid var(--card-border); border-radius:12px;
+    padding:10px 12px; cursor:pointer; color:var(--text-0);
+    transition:border-color .2s, transform .15s, background .2s;
+  }
+  .scene-chip:hover{ border-color:rgba(255,255,255,0.25); transform:translateY(-1px); }
+  .scene-chip:active{ transform:translateY(0); }
+  .scene-chip .emoji{ font-size:1.25rem; flex:0 0 auto; line-height:1; }
+  .scene-chip .label{ font-size:.74rem; line-height:1.4; color:var(--text-1); }
+  .scene-chip.active{
+    border-color:var(--card-border-active);
+    background:rgba(255,255,255,0.08);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(148px,1fr));
+    gap:10px;
+  }
+  .card{
+    position:relative;
+    text-align:left;
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:16px;
+    padding:14px 14px 12px;
+    color:var(--text-0);
+    cursor:pointer;
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    transition:border-color .25s, transform .15s, box-shadow .25s, background .25s;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .card:hover{ transform:translateY(-2px); border-color:rgba(255,255,255,0.18); }
+  .card:active{ transform:translateY(0); }
+  .card .dot{ width:10px; height:10px; border-radius:50%; box-shadow:0 0 10px 2px currentColor; }
+  .card .hz{ font-size:1.2rem; font-weight:700; }
+  .card .tag{ font-size:.74rem; color:var(--text-1); }
+  .card .desc{ font-size:.72rem; color:var(--text-2); line-height:1.5; margin-top:2px; }
+  .card.active{
+    border-color:var(--card-border-active);
+    background:rgba(255,255,255,0.08);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.06), 0 10px 30px -12px rgba(0,0,0,0.6);
+  }
+  .card .eq{ position:absolute; top:14px; right:14px; display:none; align-items:flex-end; gap:2px; height:14px; }
+  .card.playing .eq{ display:flex; }
+  .card .eq i{ display:block; width:3px; border-radius:2px; background:currentColor; animation:eq 1s ease-in-out infinite; }
+  .card .eq i:nth-child(1){ animation-delay:-0.6s; }
+  .card .eq i:nth-child(2){ animation-delay:-0.3s; }
+  .card .eq i:nth-child(3){ animation-delay:0s; }
+  @keyframes eq{ 0%,100%{ height:4px; } 50%{ height:14px; } }
+
+  .favorites{ margin-top:28px; }
+  .fav-header{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .fav-header h2{ font-size:.92rem; font-weight:700; margin:0; color:var(--text-0); flex:1 1 auto; }
+  .fav-header-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .fav-save, .fav-io-btn{
+    flex:0 0 auto; background:none; border:1px dashed var(--card-border); color:var(--text-1);
+    border-radius:8px; padding:6px 11px; font-size:.7rem; cursor:pointer; transition:border-color .2s, color .2s;
+  }
+  .fav-save:hover, .fav-io-btn:hover{ color:var(--text-0); border-color:rgba(255,255,255,0.3); }
+  .fav-save:disabled{ opacity:.4; cursor:not-allowed; }
+  .fav-save-form{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .fav-save-form[hidden]{ display:none; }
+  .fav-save-form input[type=text]{
+    flex:1 1 160px; background:rgba(255,255,255,0.06); border:1px solid var(--card-border);
+    border-radius:8px; padding:7px 10px; color:var(--text-0); font-size:.78rem; outline:none;
+  }
+  .fav-save-form button{
+    flex:0 0 auto; border-radius:8px; padding:7px 12px; font-size:.72rem; cursor:pointer;
+    border:1px solid var(--card-border); background:rgba(255,255,255,0.06); color:var(--text-0);
+  }
+  .fav-save-form button:hover{ border-color:rgba(255,255,255,0.3); }
+  .fav-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .fav-empty{ font-size:.74rem; color:var(--text-2); }
+  .fav-chip{
+    display:flex; align-items:center; gap:8px; background:var(--card-bg); border:1px solid var(--card-border);
+    border-radius:999px; padding:6px 8px 6px 14px; cursor:pointer; color:var(--text-0); font-size:.74rem;
+  }
+  .fav-chip:hover{ border-color:rgba(255,255,255,0.25); }
+  .fav-chip-name{ font-weight:600; }
+  .fav-chip-detail{ color:var(--text-2); font-size:.68rem; }
+  .fav-chip-del{
+    display:flex; align-items:center; justify-content:center; width:20px; height:20px;
+    border-radius:50%; color:var(--text-2); flex:0 0 auto;
+  }
+  .fav-chip-del:hover{ background:rgba(255,255,255,0.1); color:var(--text-0); }
+
+  .pomodoro{
+    margin-top:28px; background:var(--card-bg); border:1px solid var(--card-border);
+    border-radius:14px; padding:16px 18px;
+  }
+  .pomo-header{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .pomo-header h2{ font-size:.92rem; font-weight:700; margin:0; color:var(--text-0); }
+  .pomo-status{ font-size:.72rem; color:var(--accent); font-weight:700; }
+  .pomo-sub{ font-size:.72rem; color:var(--text-2); margin:4px 0 14px; line-height:1.6; }
+  .pomo-settings{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
+  .pomo-field{ display:flex; flex-direction:column; gap:6px; font-size:.72rem; color:var(--text-1); flex:1 1 180px; }
+  .pomo-field select{
+    background:rgba(255,255,255,0.08); color:var(--text-0); border:1px solid var(--card-border);
+    border-radius:8px; padding:6px 8px; font-size:.74rem; outline:none; width:100%;
+  }
+  .pomo-field select option{ background:var(--bg-1); color:var(--text-0); }
+  .pomo-min-row{ display:flex; align-items:center; gap:6px; }
+  .pomo-field input[type=number]{
+    width:64px; background:rgba(255,255,255,0.08); color:var(--text-0); border:1px solid var(--card-border);
+    border-radius:8px; padding:6px 8px; font-size:.74rem; outline:none;
+  }
+  .pomo-field select:disabled, .pomo-field input:disabled{ opacity:.45; }
+  .pomo-controls{ display:flex; align-items:center; gap:14px; }
+  .pomo-start, .pomo-stop{
+    border-radius:8px; padding:8px 18px; font-size:.78rem; cursor:pointer;
+  }
+  .pomo-start{ background:var(--text-0); color:#141024; font-weight:700; border:none; }
+  .pomo-stop{ background:none; border:1px solid var(--card-border); color:var(--text-1); }
+  .pomo-stop:hover{ color:var(--text-0); border-color:rgba(255,255,255,0.3); }
+  .pomo-stop[hidden], .pomo-start[hidden]{ display:none; }
+  .pomo-countdown{ font-variant-numeric:tabular-nums; font-size:.9rem; color:var(--text-0); font-weight:700; }
+
+  section.about{ margin-top:28px; }
+  section.about details{
+    background:var(--card-bg);
+    border:1px solid var(--card-border);
+    border-radius:14px;
+    padding:12px 16px;
+  }
+  section.about summary{ cursor:pointer; font-size:.86rem; color:var(--text-1); font-weight:600; outline:none; }
+  section.about .body{ font-size:.78rem; color:var(--text-2); line-height:1.8; margin-top:8px; }
+  section.about .body h3{ font-size:.8rem; color:var(--text-0); font-weight:700; margin:14px 0 4px; }
+  section.about .body h3:first-child{ margin-top:0; }
+  section.about .body ul{ margin:0 0 4px; padding-left:1.2em; }
+  section.about .body li{ margin-bottom:4px; }
+  footer.disclaimer{ text-align:center; font-size:.68rem; color:var(--text-2); margin-top:18px; line-height:1.7; opacity:.8; }
+
+  /* now playing bar */
+  .bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:5;
+    padding:14px 16px calc(14px + var(--safe-b));
+    background:linear-gradient(180deg, rgba(14,10,31,0.4), rgba(11,8,24,0.92) 30%);
+    backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+    border-top:1px solid rgba(255,255,255,0.08);
+    transform:translateY(100%);
+    transition:transform .35s cubic-bezier(.2,.8,.2,1);
+  }
+  .bar.show{ transform:translateY(0); }
+  .bar-inner{ max-width:720px; margin:0 auto; }
+  .bar-top{ display:flex; align-items:center; gap:12px; }
+  .orb-wrap{ position:relative; width:52px; height:52px; flex:0 0 auto; }
+  .orb{
+    width:100%; height:100%; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--oc,#9b8cff), rgba(0,0,0,0) 70%), var(--oc,#9b8cff);
+    box-shadow:0 0 18px 3px color-mix(in srgb, var(--oc,#9b8cff) 65%, transparent);
+    animation:breathe 11s ease-in-out infinite;
+  }
+  .bar.paused .orb{ animation-play-state:paused; opacity:.5; }
+  @keyframes breathe{ 0%,100%{ transform:scale(0.86); filter:brightness(0.92);} 50%{ transform:scale(1.05); filter:brightness(1.15);} }
+
+  .bar-info{ flex:1 1 auto; min-width:0; }
+  .bar-info .name{ font-weight:700; font-size:.95rem; }
+  .bar-info .tag{ font-size:.72rem; color:var(--text-1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .playpause{
+    flex:0 0 auto; width:46px; height:46px; border-radius:50%; border:none;
+    background:var(--text-0); color:#141024; font-size:1.05rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px -6px rgba(0,0,0,0.6);
+  }
+  .playpause:active{ transform:scale(0.94); }
+
+  .bar-controls{ display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
+  .ctrl{ display:flex; align-items:center; gap:8px; font-size:.72rem; color:var(--text-1); flex:1 1 160px; min-width:150px; }
+  .ctrl svg{ flex:0 0 auto; opacity:.8; }
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; flex:1; height:4px; border-radius:2px;
+    background:rgba(255,255,255,0.16); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#fff; cursor:pointer;
+    box-shadow:0 0 0 4px rgba(255,255,255,0.12);
+  }
+  select#timerSelect{
+    background:rgba(255,255,255,0.08); color:var(--text-0); border:1px solid var(--card-border);
+    border-radius:8px; padding:5px 8px; font-size:.72rem; outline:none;
+  }
+  select#timerSelect option, select#binauralBand option{
+    background:var(--bg-1); color:var(--text-0);
+  }
+  .countdown{ font-variant-numeric:tabular-nums; color:var(--text-0); font-size:.72rem; min-width:38px; text-align:right; }
+  .stopbtn{
+    flex:0 0 auto; background:none; border:1px solid var(--card-border); color:var(--text-1);
+    border-radius:8px; padding:5px 10px; font-size:.7rem; cursor:pointer;
+  }
+  .stopbtn:hover{ color:var(--text-0); border-color:rgba(255,255,255,0.25); }
+
+  .overlay-row{
+    display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+    margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07);
+  }
+  .overlay-pick{
+    display:flex; align-items:center; gap:7px;
+    background:none; border:1px dashed var(--card-border); color:var(--text-1);
+    border-radius:8px; padding:7px 12px; font-size:.72rem; cursor:pointer;
+    transition:border-color .2s, color .2s;
+  }
+  .overlay-pick:hover{ color:var(--text-0); border-color:rgba(255,255,255,0.3); }
+  .overlay-pick[hidden]{ display:none; }
+  .overlay-player{ display:flex; align-items:center; gap:9px; flex:1 1 240px; min-width:0; }
+  .overlay-player[hidden]{ display:none; }
+  .overlay-toggle{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--card-border);
+    background:rgba(255,255,255,0.06); color:var(--text-0); font-size:.7rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .overlay-name{
+    flex:1 1 auto; min-width:40px; font-size:.72rem; color:var(--text-1);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .overlay-player input[type=range]{ flex:1 1 80px; min-width:60px; }
+  .overlay-remove{
+    flex:0 0 auto; background:none; border:none; color:var(--text-2);
+    font-size:.8rem; cursor:pointer; padding:4px;
+  }
+  .overlay-remove:hover{ color:var(--text-0); }
+
+  .binaural-row{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.07);
+    font-size:.72rem; color:var(--text-1);
+  }
+  .binaural-toggle{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .binaural-toggle input{ accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  select#binauralBand{
+    background:rgba(255,255,255,0.08); color:var(--text-0); border:1px solid var(--card-border);
+    border-radius:8px; padding:5px 8px; font-size:.72rem; outline:none;
+  }
+  select#binauralBand:disabled{ opacity:.4; }
+  .binaural-hint{ flex-basis:100%; font-size:.66rem; color:var(--text-2); }
+
+  .toast{
+    position:fixed; left:50%; bottom:calc(96px + var(--safe-b)); transform:translate(-50%,10px);
+    background:rgba(20,16,40,0.92); border:1px solid rgba(255,255,255,0.12); color:var(--text-0);
+    padding:8px 16px; border-radius:999px; font-size:.76rem; z-index:6;
+    opacity:0; transition:opacity .3s, transform .3s; pointer-events:none;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  .usage-hint{ font-size:.66rem; color:var(--text-2); }
+
+  .paywall-overlay{
+    position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    background:rgba(5,3,10,0.72); padding:20px; backdrop-filter:blur(3px);
+  }
+  .paywall-overlay[hidden]{ display:none; }
+  .paywall-modal{
+    max-width:380px; width:100%; background:var(--bg-1); border:1px solid var(--card-border);
+    border-radius:16px; padding:22px 22px 20px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.7);
+  }
+  .paywall-modal h3{ font-size:1rem; font-weight:700; margin:0 0 10px; color:var(--text-0); }
+  .paywall-modal p{ font-size:.8rem; color:var(--text-1); line-height:1.7; margin:0 0 10px; }
+  .paywall-note{ font-size:.72rem !important; color:var(--text-2) !important; }
+  .paywall-actions{ display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+  .paywall-buy{
+    background:var(--text-0); color:#141024; font-weight:700; border:none;
+    border-radius:10px; padding:11px; font-size:.85rem; cursor:pointer;
+  }
+  .paywall-buy:hover{ opacity:.92; }
+  .paywall-cancel{
+    background:none; border:1px solid var(--card-border); color:var(--text-1);
+    border-radius:10px; padding:9px; font-size:.78rem; cursor:pointer;
+  }
+  .paywall-cancel:hover{ color:var(--text-0); border-color:rgba(255,255,255,0.3); }
+
+  @media (max-width:420px){
+    .card .desc{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="aurora"><span></span><span></span><span></span></div>
+
+<div class="app">
+  <header class="top">
+    <h1>ソルフェジオ周波数</h1>
+    <p>心を落ち着けたい時間に。9つの周波数から選んで、静かに響きに浸ってください。</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <video id="stageVideo" src="videos/bg-174.mp4" muted loop autoplay playsinline preload="auto" aria-hidden="true"></video>
+    <img id="stageImage" class="stage-bg" alt="" hidden>
+    <input type="file" id="bgFile" accept="image/*,video/*" hidden>
+    <button class="bg-pick" id="bgPickBtn" type="button" title="背景を自分の画像・動画に変える">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      背景を変える
+    </button>
+    <div class="bg-active" id="bgActive" hidden>
+      <span class="bg-name" id="bgName"></span>
+      <button class="bg-reset" id="bgResetBtn" type="button">元に戻す</button>
+    </div>
+    <span class="stage-credit" id="stageCredit">映像: Pixabay</span>
+    <div class="stage-loading" id="stageLoading" hidden aria-hidden="true">
+      <div class="spinner"></div>
+    </div>
+    <div class="stage-caption">
+      <span class="hz" id="stageHz">周波数を選んでください</span>
+      <span class="tag" id="stageTag"></span>
+      <span class="effect" id="stageEffect"></span>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <section class="scenes">
+    <h2>シーンから選ぶ</h2>
+    <p class="scenes-sub">迷ったときは、今の気分やシーンに合わせてワンタップで始められます。</p>
+    <div class="scene-list" id="sceneList"></div>
+  </section>
+
+  <section class="favorites">
+    <div class="fav-header">
+      <h2>お気に入り</h2>
+      <div class="fav-header-actions">
+        <button class="fav-io-btn" id="favExportBtn" type="button" title="お気に入りをファイルに書き出す">⬇ エクスポート</button>
+        <input type="file" id="favImportFile" accept="application/json" hidden>
+        <button class="fav-io-btn" id="favImportBtn" type="button" title="ファイルからお気に入りを読み込む">⬆ インポート</button>
+        <button class="fav-save" id="favSaveBtn" type="button" disabled>+ 現在の設定を保存</button>
+      </div>
+    </div>
+    <div class="fav-save-form" id="favSaveForm" hidden>
+      <input type="text" id="favNameInput" placeholder="名前を入力(例: 就寝前)" maxlength="20">
+      <button type="button" id="favSaveConfirmBtn">保存</button>
+      <button type="button" id="favSaveCancelBtn">キャンセル</button>
+    </div>
+    <div class="fav-list" id="favList"></div>
+  </section>
+
+  <section class="pomodoro">
+    <div class="pomo-header">
+      <h2>学習・仕事のポモドーロタイマー</h2>
+      <span class="pomo-status" id="pomoStatus"></span>
+    </div>
+    <p class="pomo-sub">「ポモドーロ・テクニック」のように、勉強や仕事の集中時間と休憩時間を交互に繰り返します。切り替えのタイミングで周波数も自動的に変わります。</p>
+    <div class="pomo-settings" id="pomoSettings">
+      <label class="pomo-field">
+        集中
+        <div class="pomo-min-row">
+          <select id="pomoWorkFreq" aria-label="集中中の周波数"></select>
+          <input type="number" id="pomoWorkMin" min="1" max="120" value="25" aria-label="集中時間(分)">分
+        </div>
+      </label>
+      <label class="pomo-field">
+        休憩
+        <div class="pomo-min-row">
+          <select id="pomoBreakFreq" aria-label="休憩中の周波数"></select>
+          <input type="number" id="pomoBreakMin" min="1" max="60" value="5" aria-label="休憩時間(分)">分
+        </div>
+      </label>
+    </div>
+    <div class="pomo-controls">
+      <button class="pomo-start" id="pomoStartBtn" type="button">開始</button>
+      <button class="pomo-stop" id="pomoStopBtn" type="button" hidden>停止</button>
+      <span class="pomo-countdown" id="pomoCountdown"></span>
+      <span class="usage-hint" id="pomoUsageHint"></span>
+    </div>
+  </section>
+
+  <section class="about">
+    <details open>
+      <summary>使い方</summary>
+      <div class="body">
+        <h3>基本の再生</h3>
+        <ul>
+          <li>周波数カードをタップすると、その場で再生が始まります。</li>
+          <li>下部のバーで、再生・一時停止、音量調整、スリープタイマー(5〜60分、終了時は自動でフェードアウト)、停止ができます。</li>
+          <li>別の周波数カードをタップすると、なめらかに切り替わります。</li>
+        </ul>
+        <h3>バイノーラルビートを重ねる</h3>
+        <ul>
+          <li>下部バーの「バイノーラルビートを重ねる」にチェックを入れると、左右の耳にわずかに異なる周波数を送ります。</li>
+          <li>デルタ・シータ・アルファ・ベータの4帯域から選択できます。効果を感じるにはヘッドホン・イヤホンの使用がおすすめです。</li>
+        </ul>
+        <h3>お手持ちの音楽を重ねる</h3>
+        <ul>
+          <li>「お手持ちの音楽でソルフェジオ周波数を聞く」から、端末内の音楽ファイルを選ぶとソルフェジオ周波数に重ねて再生されます。</li>
+          <li>重ねた音楽は独立した音量スライダーで調整でき、周波数を切り替えても流れ続けます。</li>
+        </ul>
+        <h3>背景のカスタマイズ</h3>
+        <ul>
+          <li>映像左上の「背景を変える」から、お好きな画像・動画ファイルに差し替えられます。</li>
+          <li>「元に戻す」で、いつでも周波数ごとの映像に戻せます。</li>
+        </ul>
+        <h3>お気に入り</h3>
+        <ul>
+          <li>周波数・音量・タイマーの組み合わせを選んだ状態で「+ 現在の設定を保存」から名前をつけて保存できます。</li>
+          <li>保存したチップをタップすると同じ設定を一度に呼び出せます。「✕」で削除できます。</li>
+          <li>「エクスポート」でお気に入りをファイルに書き出し、「インポート」で別の端末や再インストール後に読み込めます。</li>
+        </ul>
+        <h3>学習・仕事のポモドーロタイマー</h3>
+        <ul>
+          <li>「シーンから選ぶ」の下にあるセクションで、集中中・休憩中それぞれの周波数と時間(分)を設定できます。</li>
+          <li>「開始」を押すと、設定した時間ごとに集中→休憩→集中…と自動的に周波数が切り替わります。「停止」でいつでも終了できます。</li>
+        </ul>
+        <h3>タスクトレイに常駐(デスクトップ版)</h3>
+        <ul>
+          <li>ウィンドウ右上の「×」で閉じても、アプリは終了せずタスクトレイに常駐し、再生中の音はそのまま流れ続けます。</li>
+          <li>タスクバー右下の通知領域(隠れている場合は「^」から)にあるアイコンを<strong>左クリック</strong>するとウィンドウの表示/非表示を切り替えられます。</li>
+          <li><strong>右クリック</strong>のメニューから、ウィンドウを開かずに「再生/一時停止」「停止」ができます。完全に終了したいときは、このメニューの「終了」を選んでください。</li>
+          <li>この機能はデスクトップ版(Electronアプリ)でのみ利用できます。ブラウザ版では表示されません。</li>
+        </ul>
+      </div>
+    </details>
+    <details>
+      <summary>ソルフェジオ周波数とは</summary>
+      <div class="body">
+        ソルフェジオ周波数は、古くから瞑想やヒーリングの分野で用いられてきたとされる音の周波数群です。
+        <br><br>
+        古代エジプトやグレゴリオ聖歌の時代から、こうした音の周波数が祈祷や治療の儀式に用いられていた、という説がスピリチュアル系のコンテンツを中心によく語られています。ソルフェジオ周波数を「古代から伝わる神聖な音階」として紹介する書籍やウェブサイトも数多くあります。また、交流電力システムの実用化で知られる科学者ニコラ・テスラ(1856〜1943)が「ソルフェジオ周波数の人体への効果を発見した」という説もよく語られています。テスラは晩年、高周波電流が生体に与える影響を実験しており、「3、6、9という数字と振動・周波数・エネルギーにこそ宇宙の鍵がある」という言葉を残したことで知られますが、これがソルフェジオ周波数の紹介コンテンツでたびたび引用されるようになりました。
+        <br><br>
+        ただし、174〜963Hzといった現在知られる数値そのものは1970年代以降に体系化されたもので、古代文明がこの数値体系を用いて治療を行っていたことや、テスラ本人がこの音階・周波数群を研究・発見したことを示す考古学的・歴史的な記録は確認されていません。あくまで愛好家の間でよく語られる説としてご紹介するものであり、史実として実証されたものではない点にご留意ください。
+        <br><br>
+        本アプリでは、各周波数を純音(サイン波)にオクターブ下の倍音とわずかなうねりを重ねて生成し、耳あたりの良い持続音として再生しています。
+        効果には科学的な合意はなく、医学的な効能を保証するものではありません。リラックスや瞑想のお供として、心地よいと感じる範囲でお楽しみください。
+        <br><br>
+        背景映像には、Pixabay Content Licenseのもとで公開されている星雲・銀河映像(作者: Mikkehouse, olenchic, AndreyC, MrWashingt0n, mdherren, Joe_hackney の各氏)を、周波数ごとに使用しています。
+      </div>
+    </details>
+  </section>
+
+  <footer class="disclaimer">
+    本アプリはリラクゼーション・瞑想を目的としたものであり、医学的な効果を保証するものではありません。<br>
+    音量は控えめから始め、心地よい音量でご利用ください。<br>
+    「音楽を重ねる」機能で読み込んだファイルは端末内でのみ再生され、どこにも送信・保存されません。ご自身が再生する権利をお持ちの音源をご利用ください。
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="paywall-overlay" id="paywallOverlay" hidden>
+  <div class="paywall-modal">
+    <h3 id="paywallTitle">無料利用回数の上限に達しました</h3>
+    <p id="paywallBody"></p>
+    <p class="paywall-note">¥480の買い切りで、「お手持ちの音楽で聴く」と「ポモドーロタイマー」の両方が無制限に使えるようになります。追加の月額費用はありません。</p>
+    <div class="paywall-actions">
+      <button class="paywall-buy" id="paywallBuyBtn" type="button">¥480で無制限に解除する</button>
+      <button class="paywall-cancel" id="paywallCancelBtn" type="button">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="bar" id="bar">
+  <div class="bar-inner">
+    <div class="bar-top">
+      <div class="orb-wrap"><div class="orb" id="orb"></div></div>
+      <div class="bar-info">
+        <div class="name" id="nowName">-</div>
+        <div class="tag" id="nowTag"></div>
+      </div>
+      <button class="playpause" id="playBtn" aria-label="再生・停止">▶</button>
+    </div>
+    <div class="bar-controls">
+      <div class="ctrl">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M16 8a5 5 0 0 1 0 8"/></svg>
+        <input type="range" id="volume" min="0" max="100" value="60">
+      </div>
+      <div class="ctrl" style="flex:0 0 auto; min-width:0;">
+        <select id="timerSelect" aria-label="スリープタイマー">
+          <option value="0">タイマー: オフ</option>
+          <option value="5">5分で停止</option>
+          <option value="10">10分で停止</option>
+          <option value="15">15分で停止</option>
+          <option value="20">20分で停止</option>
+          <option value="30">30分で停止</option>
+          <option value="45">45分で停止</option>
+          <option value="60">60分で停止</option>
+        </select>
+        <span class="countdown" id="countdown"></span>
+      </div>
+      <button class="stopbtn" id="stopBtn">停止</button>
+    </div>
+    <div class="binaural-row">
+      <label class="binaural-toggle">
+        <input type="checkbox" id="binauralCheck">
+        <span>バイノーラルビートを重ねる</span>
+      </label>
+      <select id="binauralBand" aria-label="脳波帯域" disabled>
+        <option value="2">デルタ 2Hz(深い眠り)</option>
+        <option value="6" selected>シータ 6Hz(瞑想)</option>
+        <option value="10">アルファ 10Hz(リラックス)</option>
+        <option value="16">ベータ 16Hz(集中)</option>
+      </select>
+      <span class="binaural-hint">🎧 左右で周波数が異なるため、効果を感じるにはヘッドホン・イヤホンの使用を推奨します。</span>
+    </div>
+    <div class="overlay-row">
+      <input type="file" id="overlayFile" accept="audio/*" hidden>
+      <button class="overlay-pick" id="overlayPickBtn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        お手持ちの音楽でソルフェジオ周波数を聞く
+      </button>
+      <span class="usage-hint" id="overlayUsageHint"></span>
+      <div class="overlay-player" id="overlayPlayer" hidden>
+        <button class="overlay-toggle" id="overlayToggleBtn" type="button" aria-label="重ね再生・一時停止">▶</button>
+        <span class="overlay-name" id="overlayName"></span>
+        <input type="range" id="overlayVolume" min="0" max="100" value="45" aria-label="重ね音源の音量">
+        <button class="overlay-remove" id="overlayRemoveBtn" type="button" aria-label="重ねた音源を削除">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var FREQS = [
+    { hz:174, tag:"安心・鎮痛",       desc:"体と心の緊張をゆるめ、土台を安定させるイメージの周波数です。",
+      effect:"最も低いソルフェジオ周波数で、土台となるエネルギーを整え、体の芯にある緊張や痛みの感覚をやわらげるとされています。忙しい一日の終わりに、心と体をゆっくり着地させたいときに。",
+      video:"videos/bg-174.mp4", credit:"Mikkehouse" },
+    { hz:285, tag:"再生・回復",       desc:"細胞やエネルギーの回復をイメージさせる、静かな響きです。",
+      effect:"組織やエネルギー場の再生を促すとされる周波数です。疲れを感じているとき、消耗したエネルギーをそっと補い、本来のバランスを取り戻す手助けになるといわれています。",
+      video:"videos/bg-285.mp4", credit:"olenchic" },
+    { hz:396, tag:"解放",             desc:"恐れや罪悪感を手放し、心を軽くするための周波数とされています。",
+      effect:"潜在意識に根づいた恐れや罪悪感を手放し、ネガティブな感情のループから抜け出す助けになるとされる周波数です。過去の重荷をそっと下ろし、軽やかな一歩を踏み出したいときに。",
+      video:"videos/bg-396.mp4", credit:"AndreyC" },
+    { hz:417, tag:"変化",             desc:"停滞を断ち切り、変化を後押しするイメージの周波数です。",
+      effect:"停滞したエネルギーを解きほぐし、トラウマ的な経験からの回復や、人生の転機を後押しするイメージの周波数です。新しい環境やスタートを迎えたいときに。",
+      video:"videos/bg-417.mp4", credit:"Mikkehouse" },
+    { hz:528, tag:"愛・再生(奇跡の周波数)", desc:"「ミラクルトーン」とも呼ばれ、癒しと調和の象徴とされます。",
+      effect:"「ミラクルトーン」とも呼ばれる、ソルフェジオ周波数の中でも特に有名な音です。DNAの修復や細胞レベルでの調和をもたらすと語られ、愛と癒しのエネルギーを深めたいときに用いられます。",
+      video:"videos/bg-528.mp4", credit:"olenchic" },
+    { hz:639, tag:"調和・つながり",   desc:"人間関係や心のつながりを整えるとされる周波数です。",
+      effect:"人間関係の調和や、他者との心のつながりを深めるとされる周波数です。コミュニケーションを整え、共感力や思いやりの感覚を高めたいときに。",
+      video:"videos/bg-639.mp4", credit:"olenchic" },
+    { hz:741, tag:"浄化・直感",       desc:"思考をクリアにし、直感を高めるイメージの周波数です。",
+      effect:"心身の余分なエネルギーを浄化し、直感や表現力を高めるとされています。頭の中を整理して、クリエイティブな閃きを得たいときに。",
+      video:"videos/bg-741.mp4", credit:"MrWashingt0n" },
+    { hz:852, tag:"覚醒",             desc:"精神性を高め、内なる気づきを促すとされる周波数です。",
+      effect:"精神性を高め、より澄んだ意識状態への覚醒を促すとされる周波数です。内なる声に気づき、直感的な洞察を得たいときに。",
+      video:"videos/bg-852.mp4", credit:"mdherren" },
+    { hz:963, tag:"統合・至福",       desc:"深い静けさと、大いなるものとのつながりを象徴する周波数です。",
+      effect:"「神の周波数」とも呼ばれ、松果体を活性化し、大いなる意識との一体感や至福感をもたらすとされています。深い瞑想や、静寂の中で自分自身とつながりたいときに。",
+      video:"videos/bg-963.mp4", credit:"Joe_hackney" }
+  ];
+
+  FREQS.forEach(function(f, i){
+    f.hue = Math.round(i / (FREQS.length - 1) * 258);
+    f.color = "hsl(" + f.hue + ", 78%, 62%)";
+  });
+
+  var STORAGE_KEY = "solfeggio-player-v1";
+  var FADE_IN = 1.5;
+  var FADE_OUT = 1.1;
+
+  var grid = document.getElementById("grid");
+  var bar = document.getElementById("bar");
+  var orb = document.getElementById("orb");
+  var nowName = document.getElementById("nowName");
+  var nowTag = document.getElementById("nowTag");
+  var playBtn = document.getElementById("playBtn");
+  var stopBtn = document.getElementById("stopBtn");
+  var volumeInput = document.getElementById("volume");
+  var timerSelect = document.getElementById("timerSelect");
+  var countdownEl = document.getElementById("countdown");
+  var toastEl = document.getElementById("toast");
+  var stageHzEl = document.getElementById("stageHz");
+  var stageTagEl = document.getElementById("stageTag");
+  var stageEffectEl = document.getElementById("stageEffect");
+  var stageCreditEl = document.getElementById("stageCredit");
+  var overlayFileInput = document.getElementById("overlayFile");
+  var overlayPickBtn = document.getElementById("overlayPickBtn");
+  var overlayPlayer = document.getElementById("overlayPlayer");
+  var overlayToggleBtn = document.getElementById("overlayToggleBtn");
+  var overlayNameEl = document.getElementById("overlayName");
+  var overlayVolumeInput = document.getElementById("overlayVolume");
+  var overlayRemoveBtn = document.getElementById("overlayRemoveBtn");
+  var binauralCheck = document.getElementById("binauralCheck");
+  var binauralBand = document.getElementById("binauralBand");
+  var bgFileInput = document.getElementById("bgFile");
+  var bgPickBtn = document.getElementById("bgPickBtn");
+  var bgActiveEl = document.getElementById("bgActive");
+  var bgNameEl = document.getElementById("bgName");
+  var bgResetBtn = document.getElementById("bgResetBtn");
+  var stageImage = document.getElementById("stageImage");
+  var favSaveBtn = document.getElementById("favSaveBtn");
+  var favSaveForm = document.getElementById("favSaveForm");
+  var favNameInput = document.getElementById("favNameInput");
+  var favSaveConfirmBtn = document.getElementById("favSaveConfirmBtn");
+  var favSaveCancelBtn = document.getElementById("favSaveCancelBtn");
+  var favListEl = document.getElementById("favList");
+  var favExportBtn = document.getElementById("favExportBtn");
+  var favImportBtn = document.getElementById("favImportBtn");
+  var favImportFile = document.getElementById("favImportFile");
+  var stageLoading = document.getElementById("stageLoading");
+  var sceneListEl = document.getElementById("sceneList");
+  var pomoStatusEl = document.getElementById("pomoStatus");
+  var pomoSettingsEl = document.getElementById("pomoSettings");
+  var pomoWorkFreqSel = document.getElementById("pomoWorkFreq");
+  var pomoWorkMinInput = document.getElementById("pomoWorkMin");
+  var pomoBreakFreqSel = document.getElementById("pomoBreakFreq");
+  var pomoBreakMinInput = document.getElementById("pomoBreakMin");
+  var pomoStartBtn = document.getElementById("pomoStartBtn");
+  var pomoStopBtn = document.getElementById("pomoStopBtn");
+  var pomoCountdownEl = document.getElementById("pomoCountdown");
+  var overlayUsageHintEl = document.getElementById("overlayUsageHint");
+  var pomoUsageHintEl = document.getElementById("pomoUsageHint");
+  var paywallOverlay = document.getElementById("paywallOverlay");
+  var paywallTitleEl = document.getElementById("paywallTitle");
+  var paywallBodyEl = document.getElementById("paywallBody");
+  var paywallBuyBtn = document.getElementById("paywallBuyBtn");
+  var paywallCancelBtn = document.getElementById("paywallCancelBtn");
+
+  // ---- freemium: usage limits + paywall for "overlay music" and "pomodoro" ----
+  // The app itself and every other feature (9 frequencies, scenes, favorites,
+  // binaural beats, background customization, tray) stay free and unlimited.
+  var USAGE_KEY = "solfeggio-usage-v1";
+  var OVERLAY_FREE_LIMIT = 10;
+  var POMO_FREE_LIMIT = 15;
+  var UNLOCK_LABEL = "¥480";
+
+  var usage = { overlayCount: 0, pomoCount: 0, premium: false };
+
+  function loadUsage(){
+    try{
+      var raw = localStorage.getItem(USAGE_KEY);
+      if (raw){
+        var data = JSON.parse(raw);
+        if (typeof data.overlayCount === "number") usage.overlayCount = data.overlayCount;
+        if (typeof data.pomoCount === "number") usage.pomoCount = data.pomoCount;
+        if (typeof data.premium === "boolean") usage.premium = data.premium;
+      }
+    }catch(e){}
+  }
+  function saveUsage(){
+    try{ localStorage.setItem(USAGE_KEY, JSON.stringify(usage)); }catch(e){}
+  }
+  function isPremium(){ return !!usage.premium; }
+
+  function updateUsageHints(){
+    if (isPremium()){
+      overlayUsageHintEl.textContent = "";
+      pomoUsageHintEl.textContent = "";
+      return;
+    }
+    var overlayRemain = Math.max(0, OVERLAY_FREE_LIMIT - usage.overlayCount);
+    var pomoRemain = Math.max(0, POMO_FREE_LIMIT - usage.pomoCount);
+    overlayUsageHintEl.textContent = "無料あと" + overlayRemain + "回";
+    pomoUsageHintEl.textContent = "無料あと" + pomoRemain + "回";
+  }
+
+  function showPaywall(featureLabel, limit){
+    paywallTitleEl.textContent = "無料利用回数の上限に達しました";
+    paywallBodyEl.textContent = "「" + featureLabel + "」は無料で" + limit + "回までご利用いただけます。";
+    paywallOverlay.hidden = false;
+  }
+  function hidePaywall(){ paywallOverlay.hidden = true; }
+
+  function purchasePremium(){
+    // TODO: this is a stub. Replace with a real Microsoft Store in-app purchase
+    // (Windows.Services.Store) call once that integration is implemented, and
+    // only set usage.premium = true after the store confirms the purchase.
+    usage.premium = true;
+    saveUsage();
+    updateUsageHints();
+    hidePaywall();
+    showToast(UNLOCK_LABEL + "の購入が完了しました。今後は無制限にご利用いただけます。");
+  }
+
+  paywallBuyBtn.addEventListener("click", purchasePremium);
+  paywallCancelBtn.addEventListener("click", hidePaywall);
+  loadUsage();
+  updateUsageHints();
+
+  var cards = [];
+  FREQS.forEach(function(f, i){
+    var card = document.createElement("button");
+    card.className = "card";
+    card.type = "button";
+    card.style.color = f.color;
+    card.innerHTML =
+      '<span class="dot" style="background:' + f.color + '"></span>' +
+      '<span class="eq"><i></i><i></i><i></i></span>' +
+      '<span class="hz" style="color:#fff">' + f.hz + ' Hz</span>' +
+      '<span class="tag">' + f.tag + '</span>' +
+      '<span class="desc">' + f.desc + '</span>';
+    card.addEventListener("click", function(){ if (pomoRunning) pomoStop(); selectFreq(i, true); });
+    grid.appendChild(card);
+    cards.push(card);
+  });
+
+  // ---- scene-based quick start: one tap sets freq + volume + timer + binaural for a situation ----
+  var SCENES = [
+    { emoji:"😴", label:"眠りにつきたいときに",       freqIndex:0, volume:30, timerMinutes:45, binauralHz:2 },
+    { emoji:"🛁", label:"心身を休めて回復したいときに", freqIndex:1, volume:50, timerMinutes:30 },
+    { emoji:"😰", label:"不安や緊張をほぐしたいときに", freqIndex:2, volume:50, timerMinutes:15 },
+    { emoji:"🌅", label:"朝の目覚め・新しい一歩に",    freqIndex:3, volume:55, timerMinutes:0 },
+    { emoji:"💗", label:"前向きな気持ちになりたいときに", freqIndex:4, volume:55, timerMinutes:0 },
+    { emoji:"☕", label:"一息つきたいときに",          freqIndex:5, volume:50, timerMinutes:10 },
+    { emoji:"💻", label:"集中して作業したいときに",     freqIndex:6, volume:45, timerMinutes:25 },
+    { emoji:"🧠", label:"直感やひらめきを高めたいときに", freqIndex:7, volume:45, timerMinutes:15 },
+    { emoji:"🧘", label:"深く瞑想したいときに",         freqIndex:8, volume:40, timerMinutes:20, binauralHz:6 }
+  ];
+
+  var sceneChips = [];
+  SCENES.forEach(function(scene){
+    var chip = document.createElement("button");
+    chip.className = "scene-chip";
+    chip.type = "button";
+    chip.innerHTML =
+      '<span class="emoji">' + scene.emoji + '</span>' +
+      '<span class="label">' + scene.label + '<br>' + FREQS[scene.freqIndex].hz + 'Hz</span>';
+    chip.addEventListener("click", function(){ if (pomoRunning) pomoStop(); startScene(scene); });
+    sceneListEl.appendChild(chip);
+    sceneChips.push({ el: chip, scene: scene });
+  });
+
+  function startScene(scene){
+    binauralCheck.checked = !!scene.binauralHz;
+    binauralBand.disabled = !binauralCheck.checked;
+    if (scene.binauralHz) binauralBand.value = String(scene.binauralHz);
+
+    volumeInput.value = scene.volume;
+    if (master && ctx) master.gain.setTargetAtTime(scene.volume / 100, ctx.currentTime, 0.05);
+
+    selectFreq(scene.freqIndex, true);
+
+    if (scene.timerMinutes){
+      timerSelect.value = String(scene.timerMinutes);
+      setTimer(scene.timerMinutes);
+    } else {
+      timerSelect.value = "0";
+      clearTimer();
+    }
+  }
+
+  // ---- pomodoro-style auto-switch: alternates work/break frequencies on a timer ----
+  FREQS.forEach(function(f, i){
+    [pomoWorkFreqSel, pomoBreakFreqSel].forEach(function(sel){
+      var opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = f.hz + "Hz (" + f.tag + ")";
+      sel.appendChild(opt);
+    });
+  });
+  pomoWorkFreqSel.value = "6";  // 741Hz 浄化・直感
+  pomoBreakFreqSel.value = "5"; // 639Hz 調和・つながり
+
+  var pomoRunning = false;
+  var pomoPhase = null;
+  var pomoEnd = null;
+  var pomoHandle = null;
+
+  function pomoSetFieldsDisabled(disabled){
+    pomoSettingsEl.querySelectorAll("select, input").forEach(function(el){ el.disabled = disabled; });
+  }
+
+  function pomoStartPhase(phase){
+    pomoPhase = phase;
+    var isWork = phase === "work";
+    var freqIndex = parseInt(isWork ? pomoWorkFreqSel.value : pomoBreakFreqSel.value, 10);
+    var minutes = Math.max(1, parseInt(isWork ? pomoWorkMinInput.value : pomoBreakMinInput.value, 10) || 1);
+    pomoEnd = Date.now() + minutes * 60000;
+    selectFreq(freqIndex, true);
+    pomoStatusEl.textContent = isWork ? "🎯 集中中" : "☕ 休憩中";
+    showToast(isWork ? "集中タイムを開始しました" : "休憩タイムです");
+    pomoTick();
+  }
+
+  function pomoTick(){
+    if (!pomoRunning) return;
+    var remain = pomoEnd - Date.now();
+    if (remain <= 0){
+      pomoStartPhase(pomoPhase === "work" ? "break" : "work");
+      return;
+    }
+    var m = Math.floor(remain / 60000), s = Math.floor((remain % 60000) / 1000);
+    pomoCountdownEl.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function pomoStart(){
+    if (!isPremium() && usage.pomoCount >= POMO_FREE_LIMIT){
+      showPaywall("学習・仕事のポモドーロタイマー", POMO_FREE_LIMIT);
+      return;
+    }
+    if (!isPremium()){
+      usage.pomoCount++;
+      saveUsage();
+      updateUsageHints();
+    }
+    pomoRunning = true;
+    pomoStartBtn.hidden = true;
+    pomoStopBtn.hidden = false;
+    pomoSetFieldsDisabled(true);
+    timerSelect.value = "0";
+    timerSelect.disabled = true;
+    clearTimer();
+    pomoStartPhase("work");
+    pomoHandle = setInterval(pomoTick, 1000);
+  }
+
+  function pomoStop(){
+    if (!pomoRunning) return;
+    pomoRunning = false;
+    pomoPhase = null;
+    clearInterval(pomoHandle);
+    pomoHandle = null;
+    pomoStartBtn.hidden = false;
+    pomoStopBtn.hidden = true;
+    pomoStatusEl.textContent = "";
+    pomoCountdownEl.textContent = "";
+    pomoSetFieldsDisabled(false);
+    timerSelect.disabled = false;
+  }
+
+  pomoStartBtn.addEventListener("click", pomoStart);
+  pomoStopBtn.addEventListener("click", function(){
+    pomoStop();
+    stopPlayback();
+  });
+
+  // ---- background video: real footage, shown as close to unaltered as possible ----
+  var stageVideo = document.getElementById("stageVideo");
+  var reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  stageVideo.dataset.src = stageVideo.getAttribute("src");
+
+  var tryPlayVideo = function(){ if (!reduceMotion) stageVideo.play().catch(function(){}); };
+
+  if (reduceMotion){
+    stageVideo.removeAttribute("autoplay");
+    stageVideo.pause();
+  } else {
+    tryPlayVideo();
+    stageVideo.addEventListener("canplay", tryPlayVideo);
+    stageVideo.addEventListener("loadeddata", tryPlayVideo);
+    document.addEventListener("visibilitychange", function(){
+      if (!document.hidden && stageVideo.paused) tryPlayVideo();
+    });
+  }
+
+  // ---- loading indicator: shown while the current stage video is buffering ----
+  function showStageLoading(){ stageLoading.hidden = false; }
+  function hideStageLoading(){ stageLoading.hidden = true; }
+  stageVideo.addEventListener("loadstart", showStageLoading);
+  stageVideo.addEventListener("waiting", showStageLoading);
+  stageVideo.addEventListener("canplay", hideStageLoading);
+  stageVideo.addEventListener("playing", hideStageLoading);
+  stageVideo.addEventListener("error", hideStageLoading);
+  if (stageVideo.readyState < 3) showStageLoading();
+
+  var videoBaseOpacity = 0.55;
+  function applyVideoOpacity(){
+    if (customBgActive && !customBgIsVideo){
+      stageImage.style.opacity = String(videoBaseOpacity);
+      return;
+    }
+    var d = stageVideo.duration;
+    var loopFade = 1;
+    if (d){
+      var remain = d - stageVideo.currentTime;
+      loopFade = remain < 0.8 ? Math.max(0, remain / 0.8) : (stageVideo.currentTime < 0.8 ? stageVideo.currentTime / 0.8 : 1);
+    }
+    stageVideo.style.opacity = String(videoBaseOpacity * loopFade);
+  }
+  stageVideo.addEventListener("timeupdate", applyVideoOpacity);
+
+  function setStageFreq(f, playing){
+    if (f){
+      if (!customBgActive && stageVideo.dataset.src !== f.video){
+        stageVideo.dataset.src = f.video;
+        stageVideo.src = f.video;
+        stageVideo.load();
+        tryPlayVideo();
+      }
+      videoBaseOpacity = playing ? 0.95 : 0.7;
+      stageHzEl.textContent = f.hz + " Hz";
+      stageTagEl.textContent = f.tag;
+      stageEffectEl.textContent = f.effect;
+      if (!customBgActive) stageCreditEl.textContent = "映像: Pixabay (" + f.credit + ")";
+    } else {
+      videoBaseOpacity = 0.55;
+      stageHzEl.textContent = "周波数を選んでください";
+      stageTagEl.textContent = "";
+      stageEffectEl.textContent = "";
+    }
+    applyVideoOpacity();
+  }
+
+  // ---- custom background: user's own image or video, replacing the built-in footage ----
+  var customBgActive = false;
+  var customBgIsVideo = false;
+  var customBgObjectUrl = null;
+
+  bgPickBtn.addEventListener("click", function(){ bgFileInput.click(); });
+
+  bgFileInput.addEventListener("change", function(){
+    var file = bgFileInput.files[0];
+    if (!file) return;
+    if (customBgObjectUrl) URL.revokeObjectURL(customBgObjectUrl);
+    customBgObjectUrl = URL.createObjectURL(file);
+    customBgIsVideo = file.type.indexOf("video") === 0;
+    customBgActive = true;
+
+    if (customBgIsVideo){
+      stageImage.hidden = true;
+      stageImage.removeAttribute("src");
+      stageVideo.hidden = false;
+      stageVideo.dataset.src = customBgObjectUrl;
+      stageVideo.src = customBgObjectUrl;
+      stageVideo.load();
+      tryPlayVideo();
+    } else {
+      stageVideo.pause();
+      stageVideo.hidden = true;
+      stageImage.src = customBgObjectUrl;
+      stageImage.hidden = false;
+      hideStageLoading();
+    }
+
+    bgNameEl.textContent = file.name;
+    bgPickBtn.hidden = true;
+    bgActiveEl.hidden = false;
+    stageCreditEl.textContent = "背景: カスタム";
+    applyVideoOpacity();
+  });
+
+  bgResetBtn.addEventListener("click", function(){
+    customBgActive = false;
+    customBgIsVideo = false;
+    if (customBgObjectUrl){ URL.revokeObjectURL(customBgObjectUrl); customBgObjectUrl = null; }
+    stageImage.hidden = true;
+    stageImage.removeAttribute("src");
+    stageVideo.hidden = false;
+    bgPickBtn.hidden = false;
+    bgActiveEl.hidden = true;
+    bgFileInput.value = "";
+    stageVideo.dataset.src = "";
+    if (currentIndex >= 0) setStageFreq(FREQS[currentIndex], isPlaying);
+    else {
+      stageVideo.dataset.src = FREQS[0].video;
+      stageVideo.src = FREQS[0].video;
+      stageVideo.load();
+      tryPlayVideo();
+      stageCreditEl.textContent = "映像: Pixabay";
+    }
+  });
+
+  // ---- audio engine ----
+  var ctx = null, master = null, voice = null;
+  var currentIndex = -1;
+  var isPlaying = false;
+  var timerEnd = null, timerHandle = null;
+
+  function ensureCtx(){
+    if (!ctx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = volumeInput.value / 100;
+      master.connect(ctx.destination);
+    }
+    if (ctx.state === "suspended") ctx.resume();
+  }
+
+  function createVoice(freq){
+    var now = ctx.currentTime;
+    var voiceGain = ctx.createGain();
+    voiceGain.gain.setValueAtTime(0.0001, now);
+
+    var filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = Math.min(9000, freq * 9);
+    filter.Q.value = 0.6;
+    voiceGain.connect(filter);
+    filter.connect(master);
+
+    var partials = [
+      { ratio:1,   gain:1.00, detune:0 },
+      { ratio:0.5, gain:0.32, detune:0 },
+      { ratio:1,   gain:0.18, detune:6 },
+      { ratio:1.5, gain:0.09, detune:0 }
+    ];
+    var oscs = partials.map(function(p){
+      var o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = freq * p.ratio;
+      o.detune.value = p.detune;
+      var g = ctx.createGain();
+      g.gain.value = p.gain;
+      o.connect(g);
+      g.connect(voiceGain);
+      o.start(now);
+      return o;
+    });
+
+    var lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 1 / 11;
+    var lfoGain = ctx.createGain();
+    lfoGain.gain.setValueAtTime(0, now);
+    lfo.connect(lfoGain);
+    lfoGain.connect(voiceGain.gain);
+    lfo.start(now);
+
+    voiceGain.gain.cancelScheduledValues(now);
+    voiceGain.gain.setValueAtTime(0.0001, now);
+    voiceGain.gain.linearRampToValueAtTime(1, now + FADE_IN);
+    lfoGain.gain.linearRampToValueAtTime(0.05, now + FADE_IN);
+
+    var binaural = null;
+    if (binauralCheck.checked){
+      var beatHz = parseFloat(binauralBand.value);
+      var half = beatHz / 2;
+      var binGain = ctx.createGain();
+      binGain.gain.setValueAtTime(0.0001, now);
+      binGain.connect(master);
+
+      var panL = ctx.createStereoPanner();
+      panL.pan.setValueAtTime(-1, now);
+      var oscL = ctx.createOscillator();
+      oscL.type = "sine";
+      oscL.frequency.value = Math.max(20, freq - half);
+      var gL = ctx.createGain();
+      gL.gain.value = 0.5;
+      oscL.connect(gL); gL.connect(panL); panL.connect(binGain); oscL.start(now);
+
+      var panR = ctx.createStereoPanner();
+      panR.pan.setValueAtTime(1, now);
+      var oscR = ctx.createOscillator();
+      oscR.type = "sine";
+      oscR.frequency.value = freq + half;
+      var gR = ctx.createGain();
+      gR.gain.value = 0.5;
+      oscR.connect(gR); gR.connect(panR); panR.connect(binGain); oscR.start(now);
+
+      binGain.gain.linearRampToValueAtTime(0.4, now + FADE_IN);
+      binaural = { oscL:oscL, oscR:oscR, gL:gL, gR:gR, panL:panL, panR:panR, binGain:binGain };
+    }
+
+    return { oscs:oscs, lfo:lfo, lfoGain:lfoGain, voiceGain:voiceGain, filter:filter, binaural:binaural };
+  }
+
+  function fadeOutAndDispose(v){
+    if (!v) return;
+    var now = ctx.currentTime;
+    v.voiceGain.gain.cancelScheduledValues(now);
+    v.voiceGain.gain.setValueAtTime(v.voiceGain.gain.value, now);
+    v.voiceGain.gain.linearRampToValueAtTime(0.0001, now + FADE_OUT);
+    if (v.binaural){
+      v.binaural.binGain.gain.cancelScheduledValues(now);
+      v.binaural.binGain.gain.setValueAtTime(v.binaural.binGain.gain.value, now);
+      v.binaural.binGain.gain.linearRampToValueAtTime(0.0001, now + FADE_OUT);
+    }
+    setTimeout(function(){
+      try{
+        v.oscs.forEach(function(o){ o.stop(); o.disconnect(); });
+        v.lfo.stop(); v.lfo.disconnect();
+        v.lfoGain.disconnect(); v.filter.disconnect(); v.voiceGain.disconnect();
+        if (v.binaural){
+          v.binaural.oscL.stop(); v.binaural.oscL.disconnect();
+          v.binaural.oscR.stop(); v.binaural.oscR.disconnect();
+          v.binaural.gL.disconnect(); v.binaural.gR.disconnect();
+          v.binaural.panL.disconnect(); v.binaural.panR.disconnect();
+          v.binaural.binGain.disconnect();
+        }
+      }catch(e){}
+    }, (FADE_OUT + 0.2) * 1000);
+  }
+
+  function startPlayback(index){
+    ensureCtx();
+    var old = voice;
+    voice = createVoice(FREQS[index].hz);
+    if (old) fadeOutAndDispose(old);
+    isPlaying = true;
+    updateUI();
+  }
+
+  function stopPlayback(){
+    if (voice){ fadeOutAndDispose(voice); voice = null; }
+    isPlaying = false;
+    clearTimer();
+    if (overlayPlaying) toggleOverlayPlay();
+    if (pomoRunning) pomoStop();
+    updateUI();
+  }
+
+  // ---- overlay track: user's own classical / relaxation music, mixed on top ----
+  var overlayAudio = new Audio();
+  overlayAudio.loop = true;
+  overlayAudio.preload = "auto";
+  overlayAudio.volume = 0;
+  var overlayObjectUrl = null;
+  var overlayPlaying = false;
+  var overlayFadeRaf = null;
+
+  function fadeOverlayTo(target, duration){
+    if (overlayFadeRaf) cancelAnimationFrame(overlayFadeRaf);
+    var start = overlayAudio.volume, startTime = performance.now();
+    function step(t){
+      var p = Math.min(1, (t - startTime) / (duration * 1000));
+      overlayAudio.volume = start + (target - start) * p;
+      if (p < 1) overlayFadeRaf = requestAnimationFrame(step);
+    }
+    overlayFadeRaf = requestAnimationFrame(step);
+  }
+
+  function toggleOverlayPlay(){
+    if (overlayPlaying){
+      fadeOverlayTo(0, 0.6);
+      setTimeout(function(){ overlayAudio.pause(); }, 650);
+      overlayPlaying = false;
+      overlayToggleBtn.textContent = "▶";
+    } else {
+      overlayAudio.play().then(function(){
+        overlayPlaying = true;
+        overlayToggleBtn.textContent = "❚❚";
+        fadeOverlayTo(overlayVolumeInput.value / 100, 0.8);
+      }).catch(function(){});
+    }
+  }
+
+  overlayPickBtn.addEventListener("click", function(){ overlayFileInput.click(); });
+
+  overlayFileInput.addEventListener("change", function(){
+    var file = overlayFileInput.files[0];
+    if (!file) return;
+    if (!isPremium() && usage.overlayCount >= OVERLAY_FREE_LIMIT){
+      overlayFileInput.value = "";
+      showPaywall("お手持ちの音楽で聴く", OVERLAY_FREE_LIMIT);
+      return;
+    }
+    if (!isPremium()){
+      usage.overlayCount++;
+      saveUsage();
+      updateUsageHints();
+    }
+    if (overlayObjectUrl) URL.revokeObjectURL(overlayObjectUrl);
+    overlayObjectUrl = URL.createObjectURL(file);
+    overlayAudio.src = overlayObjectUrl;
+    overlayAudio.volume = 0;
+    overlayNameEl.textContent = file.name;
+    overlayPickBtn.hidden = true;
+    overlayPlayer.hidden = false;
+    overlayAudio.play().then(function(){
+      overlayPlaying = true;
+      overlayToggleBtn.textContent = "❚❚";
+      fadeOverlayTo(overlayVolumeInput.value / 100, 1.2);
+    }).catch(function(){});
+  });
+
+  overlayToggleBtn.addEventListener("click", toggleOverlayPlay);
+
+  overlayVolumeInput.addEventListener("input", function(){
+    overlayAudio.volume = overlayVolumeInput.value / 100;
+    save();
+  });
+
+  overlayRemoveBtn.addEventListener("click", function(){
+    fadeOverlayTo(0, 0.5);
+    setTimeout(function(){
+      overlayAudio.pause();
+      overlayAudio.removeAttribute("src");
+      overlayAudio.load();
+      if (overlayObjectUrl){ URL.revokeObjectURL(overlayObjectUrl); overlayObjectUrl = null; }
+    }, 550);
+    overlayPlaying = false;
+    overlayPlayer.hidden = true;
+    overlayPickBtn.hidden = false;
+    overlayFileInput.value = "";
+  });
+
+  function selectFreq(index, autoplay){
+    currentIndex = index;
+    if (autoplay) startPlayback(index);
+    else updateUI();
+    save();
+  }
+
+  function togglePlay(){
+    if (currentIndex < 0) return;
+    if (isPlaying) stopPlayback();
+    else startPlayback(currentIndex);
+  }
+
+  volumeInput.addEventListener("input", function(){
+    if (master){
+      var now = ctx.currentTime;
+      master.gain.setTargetAtTime(volumeInput.value / 100, now, 0.05);
+    }
+    save();
+  });
+
+  binauralCheck.addEventListener("change", function(){
+    binauralBand.disabled = !binauralCheck.checked;
+    save();
+    if (isPlaying && currentIndex >= 0) startPlayback(currentIndex);
+  });
+  binauralBand.addEventListener("change", function(){
+    save();
+    if (isPlaying && binauralCheck.checked && currentIndex >= 0) startPlayback(currentIndex);
+  });
+
+  playBtn.addEventListener("click", togglePlay);
+  stopBtn.addEventListener("click", function(){
+    stopPlayback();
+    timerSelect.value = "0";
+  });
+
+  timerSelect.addEventListener("change", function(){
+    var minutes = parseInt(timerSelect.value, 10);
+    if (!minutes){ clearTimer(); return; }
+    if (!isPlaying && currentIndex >= 0) startPlayback(currentIndex);
+    setTimer(minutes);
+  });
+
+  function setTimer(minutes){
+    clearInterval(timerHandle);
+    timerEnd = Date.now() + minutes * 60 * 1000;
+    tickTimer();
+    timerHandle = setInterval(tickTimer, 1000);
+  }
+  function clearTimer(){
+    clearInterval(timerHandle);
+    timerHandle = null; timerEnd = null;
+    countdownEl.textContent = "";
+  }
+  function tickTimer(){
+    var remain = timerEnd - Date.now();
+    if (remain <= 0){
+      clearTimer();
+      timerSelect.value = "0";
+      stopPlayback();
+      showToast("タイマーが終了しました");
+      return;
+    }
+    var m = Math.floor(remain / 60000);
+    var s = Math.floor((remain % 60000) / 1000);
+    countdownEl.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 3000);
+  }
+
+  function updateUI(){
+    cards.forEach(function(c, i){
+      c.classList.toggle("active", i === currentIndex);
+      c.classList.toggle("playing", i === currentIndex && isPlaying);
+    });
+    sceneChips.forEach(function(sc){
+      sc.el.classList.toggle("active", sc.scene.freqIndex === currentIndex);
+    });
+    favSaveBtn.disabled = currentIndex < 0;
+    if (currentIndex >= 0){
+      var f = FREQS[currentIndex];
+      bar.classList.add("show");
+      bar.classList.toggle("paused", !isPlaying);
+      orb.style.setProperty("--oc", f.color);
+      nowName.textContent = f.hz + " Hz";
+      nowTag.textContent = f.tag;
+      playBtn.textContent = isPlaying ? "❚❚" : "▶";
+      playBtn.setAttribute("aria-label", isPlaying ? "一時停止" : "再生");
+      setStageFreq(f, isPlaying);
+    } else {
+      bar.classList.remove("show");
+      setStageFreq(null, false);
+    }
+    if (window.desktopAPI && window.desktopAPI.notifyPlaybackState){
+      window.desktopAPI.notifyPlaybackState({
+        isPlaying: isPlaying,
+        hz: currentIndex >= 0 ? FREQS[currentIndex].hz : null,
+        tag: currentIndex >= 0 ? FREQS[currentIndex].tag : null
+      });
+    }
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        index: currentIndex,
+        volume: volumeInput.value,
+        overlayVolume: overlayVolumeInput.value,
+        binaural: binauralCheck.checked,
+        binauralBand: binauralBand.value
+      }));
+    }catch(e){}
+  }
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (typeof data.volume !== "undefined") volumeInput.value = data.volume;
+      if (typeof data.overlayVolume !== "undefined") overlayVolumeInput.value = data.overlayVolume;
+      if (typeof data.binaural !== "undefined"){
+        binauralCheck.checked = data.binaural;
+        binauralBand.disabled = !data.binaural;
+      }
+      if (typeof data.binauralBand !== "undefined") binauralBand.value = data.binauralBand;
+      if (typeof data.index === "number" && data.index >= 0 && data.index < FREQS.length){
+        selectFreq(data.index, false);
+      }
+    }catch(e){}
+  }
+  load();
+
+  // ---- favorites: save current freq + volume + timer as a named, one-tap preset ----
+  var FAV_KEY = "solfeggio-favorites-v1";
+  var favorites = [];
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c];
+    });
+  }
+
+  function renderFavorites(){
+    favListEl.innerHTML = "";
+    if (!favorites.length){
+      var empty = document.createElement("div");
+      empty.className = "fav-empty";
+      empty.textContent = "まだ保存されたお気に入りはありません。周波数を選んで「+ 現在の設定を保存」から追加できます。";
+      favListEl.appendChild(empty);
+      return;
+    }
+    favorites.forEach(function(fav, i){
+      var f = FREQS[fav.freqIndex];
+      var chip = document.createElement("button");
+      chip.className = "fav-chip";
+      chip.type = "button";
+      chip.innerHTML =
+        '<span class="fav-chip-name">' + escapeHtml(fav.name) + '</span>' +
+        '<span class="fav-chip-detail">' + (f ? f.hz + "Hz" : "") + "・音量" + fav.volume + "%" +
+        (fav.timerMinutes ? "・" + fav.timerMinutes + "分タイマー" : "") + '</span>' +
+        '<span class="fav-chip-del" data-i="' + i + '">✕</span>';
+      chip.addEventListener("click", function(e){
+        if (e.target.closest(".fav-chip-del")){
+          e.stopPropagation();
+          favorites.splice(i, 1);
+          saveFavorites();
+          renderFavorites();
+          return;
+        }
+        applyFavorite(fav);
+      });
+      favListEl.appendChild(chip);
+    });
+  }
+
+  function saveFavorites(){
+    try{ localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); }catch(e){}
+  }
+
+  function loadFavorites(){
+    try{
+      var raw = localStorage.getItem(FAV_KEY);
+      favorites = raw ? JSON.parse(raw) : [];
+    }catch(e){ favorites = []; }
+    renderFavorites();
+  }
+
+  function applyFavorite(fav){
+    if (!FREQS[fav.freqIndex]) return;
+    if (pomoRunning) pomoStop();
+    volumeInput.value = fav.volume;
+    if (master && ctx) master.gain.setTargetAtTime(fav.volume / 100, ctx.currentTime, 0.05);
+    selectFreq(fav.freqIndex, true);
+    if (fav.timerMinutes){
+      timerSelect.value = String(fav.timerMinutes);
+      setTimer(fav.timerMinutes);
+    } else {
+      timerSelect.value = "0";
+      clearTimer();
+    }
+    save();
+  }
+
+  favSaveBtn.addEventListener("click", function(){
+    if (currentIndex < 0) return;
+    favSaveForm.hidden = false;
+    favNameInput.value = "";
+    favNameInput.focus();
+  });
+  favSaveCancelBtn.addEventListener("click", function(){ favSaveForm.hidden = true; });
+  favSaveConfirmBtn.addEventListener("click", function(){
+    var name = favNameInput.value.trim();
+    if (!name || currentIndex < 0) return;
+    favorites.push({
+      name: name,
+      freqIndex: currentIndex,
+      volume: parseInt(volumeInput.value, 10),
+      timerMinutes: parseInt(timerSelect.value, 10) || 0
+    });
+    saveFavorites();
+    renderFavorites();
+    favSaveForm.hidden = true;
+  });
+  favNameInput.addEventListener("keydown", function(e){
+    if (e.key === "Enter") favSaveConfirmBtn.click();
+    if (e.key === "Escape") favSaveForm.hidden = true;
+  });
+
+  favExportBtn.addEventListener("click", function(){
+    if (!favorites.length){ showToast("お気に入りがまだありません"); return; }
+    var blob = new Blob([JSON.stringify(favorites, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "solfeggio-favorites.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    showToast("お気に入りを書き出しました");
+  });
+
+  favImportBtn.addEventListener("click", function(){ favImportFile.click(); });
+
+  favImportFile.addEventListener("change", function(){
+    var file = favImportFile.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        if (!Array.isArray(data)) throw new Error("invalid format");
+        var added = 0;
+        data.forEach(function(item){
+          if (item && typeof item.name === "string" && typeof item.freqIndex === "number" &&
+              item.freqIndex >= 0 && item.freqIndex < FREQS.length){
+            favorites.push({
+              name: String(item.name).slice(0, 20),
+              freqIndex: item.freqIndex,
+              volume: typeof item.volume === "number" ? item.volume : 60,
+              timerMinutes: typeof item.timerMinutes === "number" ? item.timerMinutes : 0
+            });
+            added++;
+          }
+        });
+        saveFavorites();
+        renderFavorites();
+        showToast(added > 0 ? added + "件のお気に入りを読み込みました" : "読み込めるお気に入りが見つかりませんでした");
+      }catch(e){
+        showToast("ファイルを読み込めませんでした");
+      }
+      favImportFile.value = "";
+    };
+    reader.readAsText(file);
+  });
+
+  loadFavorites();
+
+  document.addEventListener("visibilitychange", function(){
+    if (document.hidden || !ctx) return;
+    if (ctx.state === "suspended" && isPlaying) ctx.resume();
+  });
+
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
+
+  // ---- system tray remote control (Electron desktop app only) ----
+  if (window.desktopAPI && window.desktopAPI.onTrayCommand){
+    window.desktopAPI.onTrayCommand(function(cmd){
+      if (cmd === "toggle-play") togglePlay();
+      else if (cmd === "stop"){ stopPlayback(); timerSelect.value = "0"; }
+    });
+  }
+})();
+</script>
+</body>
+</html>
